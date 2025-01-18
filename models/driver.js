@@ -32,15 +32,31 @@ const driverSchema = new mongoose.Schema({
   }],
   
   willDrive: { type: Boolean },
-  vehicleType: { type: String },
-  aadhar_front: { type: String }, // Stores the binary data for Aadhar front image
-  aadhar_back: { type: String },  // Stores the binary data for Aadhar back image
-  pan_front: { type: String },    // Stores the binary data for PAN front image
-  pan_back: { type: String },     // Stores the binary datamul for PAN back image
-  DL_front: { type: String },     // Stores the binary data for DL front image
-  DL_back: { type: String },      // Stores the binary data for DL back image
-  selfie: { type: String }    
+  aadhar_front: { type: String, required: true }, 
+  aadhar_back: { type: String, required: true },  
+  pan_front: { type: String, required: true },     
+  pan_back: { type: String, required: true },     
+  DL_front: { type: String, required: true },     
+  DL_back: { type: String, required: true },      
+  selfie: { type: String, required: true },
+  
+  vehicleNumber: {type: String, required: true},
+  RC_front : {type: String},
+  RC_back : {type: String},
+  cityOfOperations: { type: String, required: true },
+  vehicleType: { type: String, required: true },
+  bodyDetails: { type: String, required: true },
+  bodyType: { type: String, required: true },
 
+  aadhar_front_correct : {type: Boolean},
+  aadhar_back_correct : {type: Boolean},
+  pan_front_correct : {type: Boolean},
+  pan_back_correct : {type: Boolean},
+  DL_front_correct : {type: Boolean},
+  DL_back_correct : {type: Boolean},
+  RC_front_correct : {type: Boolean},
+  RC_back_correct : {type: Boolean},
+  selfie_correct : {type: Boolean},
   
 });
 

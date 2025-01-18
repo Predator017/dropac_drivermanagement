@@ -101,6 +101,12 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
                 case "DL_back":
                     driver.DL_back = fileUrl;
                     break;
+                case "RC_front":
+                    driver.RC_front = fileUrl;
+                    break;
+                case "RC_back":
+                    driver.RC_back = fileUrl;
+                    break;
                 case "selfie":
                     driver.selfie = fileUrl;
                     break;

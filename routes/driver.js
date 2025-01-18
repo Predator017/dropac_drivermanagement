@@ -162,19 +162,24 @@ router.get('/profile/:driverId', async (req, res) => {
 
 
 // update driver details with vehicle type and will drive
-router.post('/update', async (req, res) => {
+router.post('/update-driver', async (req, res) => {
   try {
-    const { driverId, vehicleType, willDrive} = req.body;
-
     
+  
 
+    const { driverId, willDrive, vehicleNumber,cityOfOperations
+      ,vehicleType,bodyDetails,bodyType} = req.body;
     const driver = await Driver.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: 'Driver not found' });
     }
 
-    driver.vehicleType = vehicleType;
     driver.willDrive = willDrive;
+    driver.vehicleNumber = vehicleNumber;
+    driver.cityOfOperations = cityOfOperations;
+    driver.vehicleType = vehicleType;
+    driver.bodyDetails = bodyDetails;
+    driver.bodyType = bodyType;
     
     await driver.save();
 
