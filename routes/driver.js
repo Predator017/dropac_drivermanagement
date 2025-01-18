@@ -174,12 +174,12 @@ router.post('/update-driver', async (req, res) => {
       return res.status(404).json({ message: 'Driver not found' });
     }
 
-    driver.willDrive = willDrive;
-    driver.vehicleNumber = vehicleNumber;
-    driver.cityOfOperations = cityOfOperations;
-    driver.vehicleType = vehicleType;
-    driver.bodyDetails = bodyDetails;
-    driver.bodyType = bodyType;
+    if (willDrive !== undefined) driver.willDrive = willDrive;
+    if (vehicleNumber !== undefined) driver.vehicleNumber = vehicleNumber;
+    if (cityOfOperations !== undefined) driver.cityOfOperations = cityOfOperations;
+    if (vehicleType !== undefined) driver.vehicleType = vehicleType;
+    if (bodyDetails !== undefined) driver.bodyDetails = bodyDetails;
+    if (bodyType !== undefined) driver.bodyType = bodyType;
     
     await driver.save();
 
