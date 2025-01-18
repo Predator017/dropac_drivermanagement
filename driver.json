@@ -1,0 +1,429 @@
+{
+  "info": {
+    "name": "API Collection",
+    "description": "Collection of all API routes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Vehicle",
+      "item": [
+        {
+          "name": "Upload Vehicle",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/vehicles/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "userId", "value": "", "type": "text" },
+                { "key": "vehicleNumber", "value": "", "type": "text" },
+                { "key": "cityOfOperations", "value": "", "type": "text" },
+                { "key": "vehicleType", "value": "", "type": "text" },
+                { "key": "bodyType", "value": "", "type": "text" },
+                { "key": "bodyDetails", "value": "", "type": "text" },
+                { "key": "vehicleRC", "type": "file" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle Details",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/vehicles/:userId"
+          }
+        },
+        {
+          "name": "Verify Vehicle",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/vehicles/verify/:vehicleId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"verified\": true }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Update Payment Status",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/vehicles/paymentdone/:vehicleId",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/wallets/:userId/transactions"
+          }
+        },
+        {
+          "name": "Withdraw Funds",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/wallets/:userId/withdraw",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"amount\": 100, \"method\": \"upi\", \"upiId\": \"test@upi\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Geolocation",
+      "item": [
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/geolocation/update-location",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"driverId\": \"\", \"lat\": 0, \"lng\": 0 }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Find Nearby Drivers",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/geolocation/nearby-drivers?lat=0&lng=0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Driver",
+      "item": [
+        {
+          "name": "Register Driver",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"mobile\": \"\", \"name\": \"\", \"email\": \"\", \"vehicleType\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Driver Profile",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/drivers/profile/:driverId"
+          }
+        },
+        {
+          "name": "Update Driver Details",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/update",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"driverId\": \"\", \"vehicleType\": \"\", \"willDrive\": true }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Login Driver",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"mobile\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/send-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"mobile\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/verify-otp",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"mobile\": \"\", \"otp\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Set Driver Status",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/set-status",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"driverId\": \"\", \"online\": true, \"outstation\": false }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/refresh-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"token\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Respond to Trip",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/respond-trip",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"driverId\": \"\", \"tripId\": \"\", \"response\": \"accept\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Trip Status",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/drivers/trip-status/:tripId"
+          }
+        },
+        {
+          "name": "Get Trip Details",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/drivers/trip-details/:tripId"
+          }
+        },
+        {
+          "name": "Clear Dues",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/drivers/clear-dues/:driverId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"paymentId\": \"\", \"amount\": 0 }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Cleared Dues",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/drivers/cleared-dues/:driverId"
+          }
+        },
+        {
+          "name": "Get Trip Details for Driver",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/drivers/trip-details-driver/:tripId"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trip",
+      "item": [
+        {
+          "name": "Create Trip",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/trips/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"customerId\": \"\", \"pickupCustomerDetails\": {}, \"pickupLocation\": {}, \"dropoffLocations\": [], \"distance\": 0, \"duration\": 0, \"fare\": 0, \"vehicleType\": \"\", \"driverId\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Driver Trips for Today",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/trips/driver/:driverId"
+          }
+        },
+        {
+          "name": "Mark Destination Reached",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/trips/destination-reached/:tripId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"dropoffLocationIndex\": 0 }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/trips/transaction/:driverId"
+          }
+        },
+        {
+          "name": "Get Driver Trips Till Date",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/trips/driver/:driverId/:date"
+          }
+        },
+        {
+          "name": "Complete Trip",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/trips/complete/:tripId"
+          }
+        },
+        {
+          "name": "Start Trip",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/trips/start/:tripId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"mobile\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Verify OTP and Start Trip",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/trips/start/:tripId/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"otp\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Check if Driver is Busy",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/trips/driver/:driverId/busy"
+          }
+        },
+        {
+          "name": "Rate Trip",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/trips/rate/:tripId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"rating\": 5 }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Cancel Trip",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/trips/cancel/:tripId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"reason\": \"\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Customer Trips",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/trips/customer/:customerId?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Set Payment Status",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:3000/api/trips/payment-status/:tripId",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"status\": \"paid\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Document",
+      "item": [
+        {
+          "name": "Upload Multiple Documents",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/documents/upload-multiple",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "userId", "value": "", "type": "text" },
+                { "key": "willDrive", "value": "", "type": "text" },
+                { "key": "transportType", "value": "", "type": "text" },
+                { "key": "aadhar", "type": "file" },
+                { "key": "pan", "type": "file" },
+                { "key": "drivingLicense", "type": "file" },
+                { "key": "profilePicture", "type": "file" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Document",
+          "request": {
+            "method": "DELETE",
+            "url": "http://localhost:3000/api/documents/:id"
+          }
+        },
+        {
+          "name": "Get All Documents",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/documents"
+          }
+        }
+      ]
+    }
+  ]
+}

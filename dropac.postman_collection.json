@@ -1,0 +1,1171 @@
+{
+	"info": {
+		"_postman_id": "68aa3088-7777-4e99-a28d-b07128d951d8",
+		"name": "dropac",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27110125"
+	},
+	"item": [
+		{
+			"name": "address",
+			"item": [
+				{
+					"name": "add address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var requiredFields = [\"addressLine\", \"city\", \"postalCode\", \"type\", \"name\", \"phoneNumber\"];",
+									"",
+									"pm.test(\"Request body contains the required fields\", function () {",
+									"  var requestBody = pm.request.body.json();",
+									"  requiredFields.forEach(function(field) {",
+									"    pm.expect(requestBody).to.have.property(field);",
+									"  });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmE0ZWRhY2IxZmI5NmRjYzIwYzMwMGMiLCJpYXQiOjE3MjI4MDYwMTAsImV4cCI6MTcyMjgwOTYxMH0.I8sg2JB_O6z6szJssMx8bp2Wdibj14tFBrx-N7P3EEg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"addressLine\": \"123 Main St\",\n  \"city\": \"Anytown\",\n  \"postalCode\": \"12345\",\n  \"type\": \"Home\",\n  \"name\": \"John Doe\",\n  \"phoneNumber\": \"123-456-7890\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/addresses",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"addresses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var requiredFields = [\"addressLine\", \"city\", \"postalCode\", \"type\", \"name\", \"phoneNumber\"];",
+									"",
+									"pm.test(\"Request body contains the required fields\", function () {",
+									"  var requestBody = pm.request.body.json();",
+									"  requiredFields.forEach(function(field) {",
+									"    pm.expect(requestBody).to.have.property(field);",
+									"  });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmE0ZWRhY2IxZmI5NmRjYzIwYzMwMGMiLCJpYXQiOjE3MjI4MDYwMTAsImV4cCI6MTcyMjgwOTYxMH0.I8sg2JB_O6z6szJssMx8bp2Wdibj14tFBrx-N7P3EEg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/addresses",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"addresses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "put address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var requiredFields = [\"addressLine\", \"city\", \"postalCode\", \"type\", \"name\", \"phoneNumber\"];",
+									"",
+									"pm.test(\"Request body contains the required fields\", function () {",
+									"  var requestBody = pm.request.body.json();",
+									"  requiredFields.forEach(function(field) {",
+									"    pm.expect(requestBody).to.have.property(field);",
+									"  });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmE0ZWRhY2IxZmI5NmRjYzIwYzMwMGMiLCJpYXQiOjE3MjI4MDYwMTAsImV4cCI6MTcyMjgwOTYxMH0.I8sg2JB_O6z6szJssMx8bp2Wdibj14tFBrx-N7P3EEg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/addresses",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"addresses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get address Copy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var requiredFields = [\"addressLine\", \"city\", \"postalCode\", \"type\", \"name\", \"phoneNumber\"];",
+									"",
+									"pm.test(\"Request body contains the required fields\", function () {",
+									"  var requestBody = pm.request.body.json();",
+									"  requiredFields.forEach(function(field) {",
+									"    pm.expect(requestBody).to.have.property(field);",
+									"  });",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmE0ZWRhY2IxZmI5NmRjYzIwYzMwMGMiLCJpYXQiOjE3MjI4MDYwMTAsImV4cCI6MTcyMjgwOTYxMH0.I8sg2JB_O6z6szJssMx8bp2Wdibj14tFBrx-N7P3EEg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/addresses/66aff060fea9d5ba2518ffc5",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"addresses",
+								"66aff060fea9d5ba2518ffc5"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "payments",
+			"item": [
+				{
+					"name": "order",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "veriy",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "paymentmethod",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "orderService",
+			"item": [
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"123\", \"quantity\": 2, \"price\": 10.0 }\n  ],\n  \"paymentMethodId\": \"pm_123\",\n  \"shippingAddressId\": \"addr_123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/:orderId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								":orderId"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/:orderId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								":orderId"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Orders for User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"Shipped\",\n  \"trackingInfo\": \"tracking_123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/:orderId/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								":orderId",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Order History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Business Order History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/business-history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"business-history"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "shipmentService",
+			"item": [
+				{
+					"name": "Create Shipment",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmNhMjRiNmQyMDQzNDgzYTZmNGUzYTgiLCJpYXQiOjE3MjUxMDY0MTgsImV4cCI6MTcyNTExMDAxOH0.i0hSuFQp1wIJ7eueTxudgF8yfreiPHl7ymT2a1cnQWM",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"orderId\": \"64a7dfb4c4f85b6c6f789d7c\",\n    \"driverId\": \"66d30b76c1bfb5ad34fdd05d\",\n    \"pickupAddress\": \"123 Pickup St\",\n    \"deliveryAddress\": \"456 Delivery Ave\",\n    \"distance\": 10,\n    \"vehicleType\": \"Bike\",\n    \"city\": \"CityName\",\n    \"isOutstation\":false\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3020/api/shipments",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"shipments"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "calculatePrice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n//   \"vehicleType\": \"Tata Ace\",\n  \"distance\": 1,\n  \"city\": \"Hyderabad\",\n  \"isOutstation\": false\n}\n"
+						},
+						"url": {
+							"raw": "http://localhost:3020/api/pricing/calculate-prices",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"pricing",
+								"calculate-prices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Shipment Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"status\":\"In Transit\"}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/shipments/:shipmentId/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"shipments",
+								":shipmentId",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "shipmentId"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Track Shipment",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3020/api/shipments/:shipmentId/track",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"shipments",
+								":shipmentId",
+								"track"
+							],
+							"variable": [
+								{
+									"key": "shipmentId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Drivers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmNhMjRiNmQyMDQzNDgzYTZmNGUzYTgiLCJpYXQiOjE3MjUxMDExNDgsImV4cCI6MTcyNTEwNDc0OH0.K3kriIKzIPSYt76bMrmF1gWD20UFzACX69YzZAiCMhc",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:3020/api/shipments/drivers/available",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"shipments",
+								"drivers",
+								"available"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create driver",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmNhMjRiNmQyMDQzNDgzYTZmNGUzYTgiLCJpYXQiOjE3MjUxMDY0MTgsImV4cCI6MTcyNTExMDAxOH0.i0hSuFQp1wIJ7eueTxudgF8yfreiPHl7ymT2a1cnQWM",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"phoneNumber\": \"1234567890\",\n  \"vehicleType\": \"Bike\",\n  \"currentLocation\": \"123 Main St, CityName\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3020/api/shipments/drivers",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"shipments",
+								"drivers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Driver",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmNhMjRiNmQyMDQzNDgzYTZmNGUzYTgiLCJpYXQiOjE3MjUxMDExNDgsImV4cCI6MTcyNTEwNDc0OH0.K3kriIKzIPSYt76bMrmF1gWD20UFzACX69YzZAiCMhc",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer <your_jwt_token>",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shipmentId\": \"sdfa2342\",\n    \"driverId\": \"ageq3221\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3020/api/shipments/drivers/assign",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3020",
+							"path": [
+								"api",
+								"shipments",
+								"drivers",
+								"assign"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Driver",
+			"item": [
+				{
+					"name": "upload doc",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "userId",
+									"value": "1234554",
+									"type": "text"
+								},
+								{
+									"key": "aadhar",
+									"type": "file",
+									"src": "/Users/chetangupta/Downloads/1725991533052-WhatsApp Image 2024-09-09 at 00.49.18.jpeg"
+								},
+								{
+									"key": "pan",
+									"type": "file",
+									"src": "/Users/chetangupta/Downloads/WhatsApp Image 2024-09-09 at 00.49.18.jpeg"
+								},
+								{
+									"key": "drivingLicense",
+									"type": "file",
+									"src": "/Users/chetangupta/Downloads/WhatsApp Image 2024-09-09 at 00.49.08.jpeg"
+								},
+								{
+									"key": "profilePicture",
+									"type": "file",
+									"src": "/Users/chetangupta/Downloads/WhatsApp Image 2024-09-09 at 00.49.08.jpeg"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:3030/api/documents/upload-multiple",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3030",
+							"path": [
+								"api",
+								"documents",
+								"upload-multiple"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "upload vehi",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "userId",
+									"value": "25245",
+									"type": "text"
+								},
+								{
+									"key": "vehicleNumber",
+									"value": "rw324",
+									"type": "text"
+								},
+								{
+									"key": "cityOfOperations",
+									"value": "argw",
+									"type": "text"
+								},
+								{
+									"key": "vehicleType",
+									"value": "sdfg",
+									"type": "text"
+								},
+								{
+									"key": "bodyType",
+									"value": "sfdgs",
+									"type": "text"
+								},
+								{
+									"key": "bodyDetails",
+									"value": "gsrgw",
+									"type": "text"
+								},
+								{
+									"key": "vehicleRC",
+									"type": "file",
+									"src": "/Users/chetangupta/Downloads/1725991533052-WhatsApp Image 2024-09-09 at 00.49.18.jpeg"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:3030/api/vehicles/upload",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3030",
+							"path": [
+								"api",
+								"vehicles",
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request Copy",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "trip create",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"driverId\": \"your_driver_id\",\n  \"vehicleId\": \"your_vehicle_id\",\n  \"from\": \"origin_location\",\n  \"to\": \"destination_location\",\n  \"distance\": 324,\n  \"duration\": 31,\n  \"fare\": \"123\",\n  \"status\": \"complete\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://driver-latest.onrender.com/api/trips/create",
+							"protocol": "https",
+							"host": [
+								"driver-latest",
+								"onrender",
+								"com"
+							],
+							"path": [
+								"api",
+								"trips",
+								"create"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "get otp",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \n\"mobile\":\"+918247068098\",\n\"name\":\"John Doe\",\n\"email\":\"johndoe@example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "logiin",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"mobile\":\"+918439513988\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "verifyotp",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"mobile\":\"+918439513988\",\n    \"otp\":\"778768\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/verify-otp",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"verify-otp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "refreshtoken",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmEyYjVlNzc5NjkwOWMyZDk5YzVlYTgiLCJpYXQiOjE3MjIzNTQwMzUsImV4cCI6MTcyMjk1ODgzNX0.tfmRQCqWgXpvQ2CCE9KQe4_RIAEP0ldfHHYlNX8C_8w\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/refresh-token",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"refresh-token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "usermanagment",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"mobile\":\"+918439513988\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "profile",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmE0ZWRhY2IxZmI5NmRjYzIwYzMwMGMiLCJpYXQiOjE3MjI4MDYwMTAsImV4cCI6MTcyMjgwOTYxMH0.I8sg2JB_O6z6szJssMx8bp2Wdibj14tFBrx-N7P3EEg",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:1000/api/users/profile",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"profile"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update profile",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmEyYjVlNzc5NjkwOWMyZDk5YzVlYTgiLCJpYXQiOjE3MjIzNTQwMzUsImV4cCI6MTcyMjk1ODgzNX0.tfmRQCqWgXpvQ2CCE9KQe4_RIAEP0ldfHHYlNX8C_8w",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"adjfadfaga\",\n    \"email\":\"sdfasdfa@sgdg\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:1000/api/users/profile",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "1000",
+					"path": [
+						"api",
+						"users",
+						"profile"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
