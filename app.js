@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const { connectRabbitMQ } = require('./rabbitmq');
+//const { connectRabbitMQ } = require('./rabbitmq');
 const { startConsumer } = require('./tripService');
 //const { sendPushNotification } = require('./sendPushnotification');
 const app = express();
@@ -15,7 +15,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Connect RabbitMQ and start consumer
-connectRabbitMQ().then(startConsumer).catch(console.error);
+//connectRabbitMQ().then(startConsumer).catch(console.error);
 
 // Middleware to parse JSON
 app.use(express.json());
