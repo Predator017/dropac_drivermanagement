@@ -50,7 +50,7 @@ const driverSchema = new mongoose.Schema({
 
 
   documentStatus: { type: String, default: 'new' }, //new, pending, success, failed
-  vehileStatus: {type: String, default: 'new'}, //new, pending, success, failed
+  vehicleStatus: {type: String, default: 'new'}, //new, pending, success, failed
   paymentdone: { type: Boolean, default: false }, //true
 
 
