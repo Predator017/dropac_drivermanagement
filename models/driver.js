@@ -48,15 +48,12 @@ const driverSchema = new mongoose.Schema({
   bodyDetails: { type: String },
   bodyType: { type: String },
 
-  aadhar_front_correct : {type: Boolean},
-  aadhar_back_correct : {type: Boolean},
-  pan_front_correct : {type: Boolean},
-  pan_back_correct : {type: Boolean},
-  DL_front_correct : {type: Boolean},
-  DL_back_correct : {type: Boolean},
-  RC_front_correct : {type: Boolean},
-  RC_back_correct : {type: Boolean},
-  selfie_correct : {type: Boolean},
+
+  verified: { type: String, default: 'new' }, //new, pending, success, failed
+  paymentdone: { type: Boolean, default: false }, //true
+
+
+
   
 });
 
