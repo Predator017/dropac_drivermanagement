@@ -180,7 +180,12 @@ router.post('/update-driver', async (req, res) => {
     if (vehicleType !== undefined) driver.vehicleType = vehicleType;
     if (bodyDetails !== undefined) driver.bodyDetails = bodyDetails;
     if (bodyType !== undefined) driver.bodyType = bodyType;
+    if (documentStatus !== undefined) driver.documentStatus = documentStatus;
+    if (vehicleStatus !== undefined) driver.vehicleStatus = vehicleStatus;
+    if (paymentdone !== undefined) driver.paymentdone = paymentdone;
     
+
+
     await driver.save();
 
     res.status(200).json({ message: 'Driver details updated', driver });
