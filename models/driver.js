@@ -49,7 +49,8 @@ const driverSchema = new mongoose.Schema({
   bodyType: { type: String },
 
 
-  verified: { type: String, default: 'new' }, //new, pending, success, failed
+  documentStatus: { type: String, default: 'new' }, //new, pending, success, failed
+  vehileStatus: {type: String, default: 'new'}, //new, pending, success, failed
   paymentdone: { type: Boolean, default: false }, //true
 
 
