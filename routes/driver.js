@@ -168,7 +168,7 @@ router.post('/update-driver', async (req, res) => {
   
 
     const { driverId, willDrive, vehicleNumber,cityOfOperations
-      ,vehicleType,bodyDetails,bodyType, documentStatus, vehicleStatus, paymentdone} = req.body;
+      ,vehicleType,bodyDetails,bodyType, documentStatus, vehicleStatus, paymentdone,rideInProgress} = req.body;
     const driver = await Driver.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: 'Driver not found' });
@@ -183,6 +183,7 @@ router.post('/update-driver', async (req, res) => {
     if (documentStatus !== undefined) driver.documentStatus = documentStatus;
     if (vehicleStatus !== undefined) driver.vehicleStatus = vehicleStatus;
     if (paymentdone !== undefined) driver.paymentdone = paymentdone;
+    if (rideInProgress !== undefined) driver.rideInProgress = rideInProgress;
     
 
 

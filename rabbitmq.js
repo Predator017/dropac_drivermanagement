@@ -1,41 +1,28 @@
+
+
 const amqp = require('amqplib');
+let channel = null;
+const rabbitmqUrl = process.env.RABBITMQ_URL;
 
-let channel;
-
-async function connectRabbitMQ(retries = 5) {
+const connectRabbitMQ = async () => {
   try {
-    const connection = await amqp.connect('amqp://dropac:dropac@192.168.1.3:5672');
+    const connection = await amqp.connect(rabbitmqUrl);
     channel = await connection.createChannel();
-    console.log('RabbitMQ connected');
+    console.log("Connected to RabbitMQ");
+
+    // Ensure the "ride-requests" queue exists
+    await channel.assertQueue('ride-requests', { durable: true });
   } catch (error) {
-    if (retries === 0) {
-      console.error('Failed to connect to RabbitMQ', error);
-      throw error;
-    }
-    console.log(`Retrying RabbitMQ connection (${retries} retries left)...`);
-    setTimeout(() => connectRabbitMQ(retries - 1), 5000);
+    console.error("Error connecting to RabbitMQ:", error);
+    process.exit(1); // Exit process on error
   }
-}
+};
 
-async function sendToQueue(queue, message) {
+const getChannel = () => {
   if (!channel) {
-    throw new Error('RabbitMQ channel is not initialized');
+    throw new Error("RabbitMQ channel is not initialized");
   }
-  await channel.assertQueue(queue, { durable: true });
-  channel.sendToQueue(queue, Buffer.from(message));
-}
+  return channel;
+};
 
-async function consumeFromQueue(queue, callback) {
-  if (!channel) {
-    throw new Error('RabbitMQ channel is not initialized');
-  }
-  await channel.assertQueue(queue, { durable: true });
-  channel.consume(queue, (msg) => {
-    if (msg !== null) {
-      callback(msg.content.toString());
-      channel.ack(msg);
-    }
-  });
-}
-
-module.exports = { connectRabbitMQ, sendToQueue, consumeFromQueue };
+module.exports = { connectRabbitMQ, getChannel };

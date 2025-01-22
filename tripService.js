@@ -4,7 +4,7 @@ const axios = require('axios');
 //const { sendPushNotification } = require('./sendPushnotification');
 
 // Assign driver to trip
-/* async function assignDriver(trip) {
+async function assignDriver(trip) {
     console.log('Assigning driver to trip:', trip._id);
     if (!(trip instanceof Trip)) {
         trip = new Trip(trip);
@@ -52,7 +52,7 @@ const axios = require('axios');
         console.log('No nearby drivers available');
     }
 }
- */
+ 
 // RabbitMQ consumer to handle ride requests
 async function startConsumer() {
     await consumeFromQueue('ride-requests', async (message) => {
@@ -61,4 +61,4 @@ async function startConsumer() {
     });
 }
 
-//module.exports = { assignDriver, startConsumer };
+module.exports = { assignDriver, startConsumer };

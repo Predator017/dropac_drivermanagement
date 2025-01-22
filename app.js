@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-//const { connectRabbitMQ } = require('./rabbitmq');
+const { connectRabbitMQ } = require('./rabbitmq');
 const { startConsumer } = require('./tripService');
 //const { sendPushNotification } = require('./sendPushnotification');
 const app = express();
@@ -15,8 +15,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Connect RabbitMQ and start consumer
-//connectRabbitMQ().then(startConsumer).catch(console.error);
-
+connectRabbitMQ();
 // Middleware to parse JSON
 app.use(express.json());
 
@@ -78,6 +77,7 @@ const driverRoutes = require('./routes/driver');
 const tripRoutes = require('./routes/trip');
 const walletRoutes = require ('./routes/wallet');
 const geolocationRoutes = require('./routes/getGeolocation');
+const rideRoutes = require('./routes/ride');
 
 // Register routes
 app.use('/api/documents', documentRoutes);
@@ -86,6 +86,9 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/wallets', walletRoutes);
 app.use('/api/geolocation', geolocationRoutes);
+
+
+app.use('/api/driver-rides', rideRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 3000;
