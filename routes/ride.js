@@ -7,10 +7,9 @@ const moment = require('moment-timezone');
 
 const NodeCache = require("node-cache");
 
-
+const consumerCache = new NodeCache(); // Initialize NodeCache
 let rideCache = new NodeCache({ stdTTL: 600 });
 
-let ignoredCache = new NodeCache({ stdTTL: 600 });
 
 
 
@@ -35,13 +34,7 @@ function isRideInCache(cache, riderId, rideId) {
 }
 
 
-function getIgnoredRidesFromCache(cache, riderId) {
-  // Retrieve the ignored rides array for the riderId from the cache
-  const rideArray = cache.get(riderId) || [];  // Return empty array if not found
 
-  console.log(`Fetched ignored rides for rider ${riderId}:`, rideArray);
-  return rideArray;
-}
 
 
 
@@ -73,177 +66,158 @@ router.post("/assign-ride", async (req, res) => {
   const channel = getChannel();
 
   // Ensure the "ride-requests" queue exists (global queue for all ride requests)
-  
+  await channel.assertQueue("ride-requests", { durable: true });
+
+  console.log(`Driver ${riderId} is now listening for ride requests...`);
+
+  // Check if the driver is already listening
+  if (consumerCache.has(riderId)) {
+    return res
+      .status(400)
+      .json({ message: "Driver is already listening for ride requests." });
+  }
+
+  // Start consuming ride requests
+  const consumerTag = await channel.consume(
+    "ride-requests",
+    async (msg) => {
+      if (!msg) {
+        console.log("No messages in the queue.");
+        return;
+      }
+
+      const rideRequest = JSON.parse(msg.content.toString());
+
+      // Calculate the distance between the user and the driver
+      const distance = calculateDistance(
+        [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
+        driverLocation.coordinates
+      );
+      console.log(`Distance to user: ${distance} km`);
+
+      if (distance <= 10 && !isRideInCache(rideCache, riderId, rideRequest._id)) {
+        console.log(`Driver ${riderId} is within 10 km. Sending the ride request.`);
+
+        // Send the ride request details to the driver
+        if (!res.headersSent) {
+          res.status(200).json({
+            message: "Ride request sent to driver",
+            rideRequest,
+          });
+        }
+
+        // Do not remove the message from the queue; requeue it for other drivers
+        channel.nack(msg, false, true);
+      } else {
+        console.log(
+          `Driver ${riderId} is too far from user ${rideRequest.userId}. Requeuing the request.`
+        );
+
+        // Requeue the message for other drivers to process
+        channel.nack(msg, false, true);
+      }
+    },
+    { noAck: false }
+  );
+
+  // Store the consumer tag in NodeCache
+  consumerCache.set(riderId, consumerTag.consumerTag);
+  console.log(`Consumer started for driver ${riderId} with tag ${consumerTag.consumerTag}`);
+});
+
+
+
+router.post("/go-offline", async (req, res) => {
+  const { riderId } = req.body;
+  const channel = getChannel();
+
+  // Check if the consumer exists in the cache
+  if (!consumerCache.has(riderId)) {
+    return res
+      .status(400)
+      .json({ message: "Driver is not currently listening for ride requests." });
+  }
+
+  try {
+    // Retrieve and cancel the consumer
+    const consumerTag = consumerCache.get(riderId);
+    await channel.cancel(consumerTag);
+
+    // Remove the consumer tag from the cache
+    consumerCache.del(riderId);
+
+    console.log(`Consumer for driver ${riderId} canceled successfully.`);
+    res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
+  } catch (error) {
+    console.error("Error canceling consumer:", error);
+    res.status(500).json({ message: "Failed to cancel the consumer.", error });
+  }
+});
+
+
+
+
+
+
+// Handle ride confirmation
+router.post("/confirm-ride", async (req, res) => {
+  const { riderId, rideId } = req.body;
+  const channel = getChannel();
 
   try {
     // Ensure the "ride-requests" queue exists
     await channel.assertQueue("ride-requests", { durable: true });
-    const tempQueue = "temp-ride-requests";
 
-    // Ensure a temporary queue exists
-    await channel.assertQueue(tempQueue, { durable: true });
-
-    console.log("Processing expired ride requests...");
-
+    let rideFound = false; // Flag to track if the ride is found in the queue
     let msg;
+
+    // Loop through the messages in the queue to find the rideId
     do {
-      // Retrieve a message from the queue
       msg = await channel.get("ride-requests", { noAck: false });
 
       if (msg) {
         const rideRequest = JSON.parse(msg.content.toString());
 
-        // Check if the rideRequest has expired
-        if (new Date() > new Date(rideRequest.timeoutAt)) {
-          // Acknowledge the message and remove it from the queue
+        if (rideRequest._id === rideId) {
+          // Ride found in the queue, acknowledge (delete) it
           channel.ack(msg);
-          console.log(`Expired ride request with ID ${rideRequest._id} removed from the queue.`);
+          rideFound = true;
+          break;
         } else {
-          // Move unexpired messages to the temporary queue
-          await channel.sendToQueue(tempQueue, Buffer.from(msg.content.toString()));
-          channel.ack(msg);
+          // Requeue the message for other drivers to process
+          channel.nack(msg, false, true);
         }
       }
     } while (msg);
 
-    console.log("Finished processing expired ride requests. Restoring unexpired rides...");
-
-    // Move messages back to the original queue
-    let tempMsg;
-    do {
-      tempMsg = await channel.get(tempQueue, { noAck: false });
-      if (tempMsg) {
-        await channel.sendToQueue("ride-requests", Buffer.from(tempMsg.content.toString()));
-        channel.ack(tempMsg);
-      }
-    } while (tempMsg);
-
-    console.log("All unexpired rides restored to the original queue.");
-  } catch (error) {
-    console.error("Error while processing expired ride requests:", error);
-  }
-
-
-  await channel.assertQueue("ride-requests", { durable: true });
-
-  console.log(`Driver ${riderId} is now listening for ride requests...`);
-
-
-  let rideProcessed = false; // Flag to ensure only one ride request is processed
-
-  // Consume ride requests
-  await channel.consume("ride-requests", async (msg) => {
-    if (rideProcessed) {
-      // If a ride is already processed, requeue the current message for other drivers
-      channel.nack(msg, false, true);
-      return;
+    if (!rideFound) {
+      // Ride not found in the queue, return an appropriate response
+      return res.status(400).json({
+        message: "You missed the ride. It has already been confirmed by another rider.",
+      });
     }
 
-    const rideRequest = JSON.parse(msg.content.toString());
-
-    // Calculate the distance between the user and the driver
-    const distance = calculateDistance(
-      rideRequest.userLocation.coordinates,
-      driverLocation.coordinates
-    );
-    console.log(`Distance to user: ${distance} km`);
-
-    if (distance <= 22 && !isRideInCache(rideCache, riderId, rideRequest._id)) {
-      // If the driver is within 10 km, process the ride request
-      console.log(`Driver ${riderId} is within 10 km. Accepting the ride request.`);
-
-      addRideToCache(ignoredCache, riderId, rideRequest);
-      // Send the ride request details to the driver
-      if (!res.headersSent) {
-        res.status(200).json({
-          message: "Ride request sent to driver",
-          rideRequest,
-        });
-      }
-
-      // Acknowledge the message (remove it from the queue)
-      channel.ack(msg);
-      rideProcessed = true; // Mark as processed
-      console.log(`Driver ${riderId} processed the ride request.`);
-
-      // Cancel the consumer to stop further message processing
-      // Cancel the consumer tag inside the callback where `consume` is triggered
-      await channel.cancel(msg.fields.consumerTag);
-      console.log(`Driver ${riderId} has stopped listening.`);
-    } else {
-      console.log(
-        `Driver ${riderId} is too far from user ${rideRequest.userId}. Requeuing the request.`
-      );
-
-      // Requeue the message for other drivers to process
-      channel.nack(msg, false, true);
-    }
-  }, { noAck: false }); // Ensure explicit acknowledgment or negative acknowledgment
-});
-
-
-router.post("/ignored-ride", async (req, res) => {
-  const { riderId } = req.body;
-  
-  try {
-    // Fetch ignored rides from the cache
-    const ignoredRides = getIgnoredRidesFromCache(ignoredCache, riderId);
-
-    // If no ignored rides found, respond with an empty array
-    if (!ignoredRides || ignoredRides.length === 0) {
-      return res.status(200).json({ message: "No ignored rides found for this driver." });
-    }
-
-    const channel = await getChannel();
-    
-    // Ensure the "ride-requests" queue exists
-    await channel.assertQueue("ride-requests", { durable: true });
-
-    // Loop through ignored rides and send them back to the queue
-    ignoredRides.forEach(rideRequest => {
-      // Assuming that the ride data (like rideId) is available in the cache,
-      // You will need to have the full ride data to send to the queue.
-        // Adjust based on your actual logic
-
-      // Send ride request back to RabbitMQ
-      channel.sendToQueue("ride-requests", Buffer.from(JSON.stringify(rideRequest)));
-      console.log(`Re-added ignored ride ${rideRequest._id} to ride-requests queue.`);
-    });
-
-    // Optionally, clear the ignoredCache after processing
-    ignoredCache.del(riderId);
-
-    res.status(200).json({
-      message: `Successfully re-added ${ignoredRides.length} ignored rides to the queue.`,
-    });
-  } catch (error) {
-    console.error("Error re-adding ignored rides:", error);
-    res.status(500).json({ message: "Failed to re-add ignored rides", error });
-  }
-});
-// Handle ride confirmation
-router.post("/confirm-ride", async (req, res) => {
-  const { riderId, rideId } = req.body;
-
-  try {
+    // Proceed to confirm the ride in the database
     const ride = await Ride.findById(rideId);
-    if (!ride || ride.status !== 'pending') {
+    if (!ride || ride.status !== "pending") {
       return res.status(400).json({ message: "Invalid ride status or ride not found." });
     }
 
     // Save the ride with driver info
-    ride.status = 'confirmed';
+    ride.status = "confirmed";
     ride.driverId = riderId;
     ride.otp = Math.floor(1000 + Math.random() * 9000);
-    ride.confirmedAt = moment().tz("Asia/Kolkata").toDate();
+    ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
     ride.timeoutAt = null;
     await ride.save();
 
     res.status(200).json({ message: "Ride confirmed successfully", ride });
   } catch (error) {
+    console.error("Error confirming ride:", error);
     res.status(500).json({ message: "Error confirming ride", error });
   }
 });
+
 
 router.get("/get-ridestatus", async(req, res)=>{
   const { rideId } = req.body;
@@ -275,13 +249,13 @@ router.post("/cancel-ride", async (req, res) => {
     }
 
     // Requeue the ride request in RabbitMQ for other drivers
-    const channel = getChannel();
+    /* const channel = getChannel();
     await channel.assertQueue("ride-requests", { durable: true });
 
     // Publish the ride request as persistent
     await channel.sendToQueue("ride-requests", Buffer.from(JSON.stringify(ride)), { persistent: true });
 
-    console.log("Ride request sent back to the queue:", ride);
+    console.log("Ride request sent back to the queue:", ride); */
 
     // Mark this driver as unavailable for this request (so they won't receive it again)
     /* const driver = await Driver.findById(riderId); // Assuming the driver is a user

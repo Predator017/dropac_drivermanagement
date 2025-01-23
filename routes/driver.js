@@ -164,16 +164,28 @@ router.get('/profile/:driverId', async (req, res) => {
 // update driver details with vehicle type and will drive
 router.post('/update-driver', async (req, res) => {
   try {
-    
-  
+    const { 
+      driverId, 
+      willDrive, 
+      vehicleNumber, 
+      cityOfOperations, 
+      vehicleType, 
+      bodyDetails, 
+      bodyType, 
+      documentStatus, 
+      vehicleStatus, 
+      paymentdone, 
+      rideInProgress, 
+      location 
+    } = req.body;
 
-    const { driverId, willDrive, vehicleNumber,cityOfOperations
-      ,vehicleType,bodyDetails,bodyType, documentStatus, vehicleStatus, paymentdone,rideInProgress} = req.body;
+    // Find the driver by ID
     const driver = await Driver.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: 'Driver not found' });
     }
 
+    // Update driver fields if provided
     if (willDrive !== undefined) driver.willDrive = willDrive;
     if (vehicleNumber !== undefined) driver.vehicleNumber = vehicleNumber;
     if (cityOfOperations !== undefined) driver.cityOfOperations = cityOfOperations;
@@ -184,9 +196,16 @@ router.post('/update-driver', async (req, res) => {
     if (vehicleStatus !== undefined) driver.vehicleStatus = vehicleStatus;
     if (paymentdone !== undefined) driver.paymentdone = paymentdone;
     if (rideInProgress !== undefined) driver.rideInProgress = rideInProgress;
-    
 
+    // Update location if provided
+    if (location && location.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+      driver.location = {
+        type: 'Point',
+        coordinates: location.coordinates
+      };
+    }
 
+    // Save the updated driver
     await driver.save();
 
     res.status(200).json({ message: 'Driver details updated', driver });
