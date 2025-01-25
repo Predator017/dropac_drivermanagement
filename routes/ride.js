@@ -62,20 +62,100 @@ const router = express.Router();
 
 // Function to listen for ride requests
 router.post("/assign-ride", async (req, res) => {
-  const { riderId, driverLocation } = req.body; // Expected format { latitude, longitude }
-  const channel = getChannel();
+  const { riderId, outStation, driverLocation } = req.body; // Expected format { latitude, longitude }
 
+    //const driver = await Driver.findById(riderId);
+
+    //const driverLocation = driver.location && driver.location.coordinates;
+
+    try{
+
+  
+
+  if(outStation){
+    const channel = getChannel();
+
+  let sentRideReq = false;
+    await channel.assertQueue("outstation-ride-requests", { durable: true });
+
+  console.log(`Driver ${riderId} is now listening for ride requests...`);
+
+  // Check if the driver is already listening
+  
+  // Start consuming ride requests
+  const consumerTag = await channel.consume(
+    "outstation-ride-requests",
+    async (msg) => {
+      if (!msg) {
+        console.log("No messages in the queue.");
+        return;
+      }
+
+      const rideRequest = JSON.parse(msg.content.toString());
+
+      // Calculate the distance between the user and the driver
+      const distance = calculateDistance(
+        [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
+        driverLocation.coordinates
+      );
+      console.log(`Distance to user: ${distance} km`);
+
+      if (distance <= 10 && !isRideInCache(rideCache, riderId, rideRequest._id)) {
+        console.log(`Driver ${riderId} is within 10 km. Sending the ride request.`);
+
+        // Send the ride request details to the driver
+        if (!res.headersSent) {
+          sentRideReq = true;
+          res.status(200).json({
+            message: "Ride request sent to driver",
+            rideRequest,
+          });
+        }
+
+        // Do not remove the message from the queue; requeue it for other drivers
+        channel.nack(msg, false, true);
+      } else {
+        console.log(
+          `Driver ${riderId} is too far from user ${rideRequest.userId}. Requeuing the request.`
+        );
+
+        // Requeue the message for other drivers to process
+        channel.nack(msg, false, true);
+      }
+    },
+    { noAck: false }
+  );
+
+  // Store the consumer tag in NodeCache
+  consumerCache.set(riderId, consumerTag.consumerTag);
+  console.log(`Consumer started for driver ${riderId} with tag ${consumerTag.consumerTag}`);
+
+  if(sentRideReq){
+    await channel.cancel(consumerTag.consumerTag);
+
+    // Remove the consumer tag from the cache
+    consumerCache.del(riderId);
+  }
+
+  }
+
+  
+
+  else{
+
+
+    
   // Ensure the "ride-requests" queue exists (global queue for all ride requests)
   await channel.assertQueue("ride-requests", { durable: true });
 
   console.log(`Driver ${riderId} is now listening for ride requests...`);
 
   // Check if the driver is already listening
-  if (consumerCache.has(riderId)) {
+ /*  if (consumerCache.has(riderId)) {
     return res
       .status(400)
       .json({ message: "Driver is already listening for ride requests." });
-  }
+  } */
 
   // Start consuming ride requests
   const consumerTag = await channel.consume(
@@ -100,6 +180,7 @@ router.post("/assign-ride", async (req, res) => {
 
         // Send the ride request details to the driver
         if (!res.headersSent) {
+          sentRideReq = true;
           res.status(200).json({
             message: "Ride request sent to driver",
             rideRequest,
@@ -123,6 +204,21 @@ router.post("/assign-ride", async (req, res) => {
   // Store the consumer tag in NodeCache
   consumerCache.set(riderId, consumerTag.consumerTag);
   console.log(`Consumer started for driver ${riderId} with tag ${consumerTag.consumerTag}`);
+
+  if(sentRideReq){
+    await channel.cancel(consumerTag.consumerTag);
+
+    // Remove the consumer tag from the cache
+    consumerCache.del(riderId);
+  }
+
+}
+
+  
+    }
+    catch (error) {
+      res.status(500).json({ message: "Ride Assignment failed", error });
+    }
 });
 
 
@@ -161,12 +257,62 @@ router.post("/go-offline", async (req, res) => {
 
 // Handle ride confirmation
 router.post("/confirm-ride", async (req, res) => {
-  const { riderId, rideId } = req.body;
+  const { riderId, rideId, outStation } = req.body;
   const channel = getChannel();
 
   try {
     // Ensure the "ride-requests" queue exists
-    await channel.assertQueue("ride-requests", { durable: true });
+
+    if(outStation){
+      await channel.assertQueue("outstation-ride-requests", { durable: true });
+
+      let rideFound = false; // Flag to track if the ride is found in the queue
+      let msg;
+  
+      // Loop through the messages in the queue to find the rideId
+      do {
+        msg = await channel.get("outstation-ride-requests", { noAck: false });
+  
+        if (msg) {
+          const rideRequest = JSON.parse(msg.content.toString());
+  
+          if (rideRequest._id === rideId) {
+            // Ride found in the queue, acknowledge (delete) it
+            channel.ack(msg);
+            rideFound = true;
+            break;
+          } else {
+            // Requeue the message for other drivers to process
+            channel.nack(msg, false, true);
+          }
+        }
+      } while (msg);
+  
+      if (!rideFound) {
+        // Ride not found in the queue, return an appropriate response
+        return res.status(400).json({
+          message: "You missed the ride. It has already been confirmed by another rider.",
+        });
+      }
+  
+      // Proceed to confirm the ride in the database
+      const ride = await Ride.findById(rideId);
+      if (!ride || ride.status !== "pending") {
+        return res.status(400).json({ message: "Invalid ride status or ride not found." });
+      }
+  
+      // Save the ride with driver info
+      ride.status = "confirmed";
+      ride.driverId = riderId;
+      ride.otp = Math.floor(1000 + Math.random() * 9000);
+      ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+      ride.timeoutAt = null;
+      await ride.save();
+  
+      res.status(200).json({ message: "Ride confirmed successfully", ride });
+    }
+    else{
+      await channel.assertQueue("ride-requests", { durable: true });
 
     let rideFound = false; // Flag to track if the ride is found in the queue
     let msg;
@@ -212,12 +358,80 @@ router.post("/confirm-ride", async (req, res) => {
     await ride.save();
 
     res.status(200).json({ message: "Ride confirmed successfully", ride });
+    }
   } catch (error) {
     console.error("Error confirming ride:", error);
     res.status(500).json({ message: "Error confirming ride", error });
   }
 });
 
+
+router.post("/complete-ride", async (req, res) => {
+  const { rideId, riderId, driverLocation } = req.body;
+
+  try {
+    const ride = await Ride.findById(rideId);
+
+    if (!ride || ride.status !== "confirmed") {
+      return res.status(400).json({ message: "Invalid ride status or ride not found." });
+    }
+
+    // Determine the current drop details based on `currentDropNumber`
+    let currentDrop;
+    let nextDrop;
+    switch (ride.currentDropNumber) {
+      case "drop1":
+        currentDrop = ride.dropDetails1;
+        nextDrop = ride.dropDetails2;
+        break;
+      case "drop2":
+        currentDrop = ride.dropDetails2;
+        nextDrop = ride.dropDetails3;
+        break;
+      case "drop3":
+        currentDrop = ride.dropDetails3;
+        nextDrop = null;
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid current drop number." });
+    }
+
+    // Check if the driver is within 500 meters of the current drop location
+    const isNearDrop = calculateDistance(driverLocation.coordinates, [currentDrop.dropLat, currentDrop.dropLon]);
+
+    if (isNearDrop>1) {
+      return res.status(400).json({
+        message: `You are not within 500 meters of ${ride.currentDropNumber}. Please move closer to the drop location and try again.`,
+      });
+    }
+
+    
+    // Proceed based on whether there's a next drop
+    if (JSON.stringify(nextDrop) !== "{}") {
+      // Update currentDropNumber to the next drop
+      const presentDropNumber = ride.currentDropNumber;
+      ride.currentDropNumber = nextDrop === ride.dropDetails2 ? "drop2" : "drop3";
+      ride.driverId = riderId;
+      await ride.save();
+
+      return res.status(200).json({
+        message: `Ride at ${presentDropNumber} completed. Now proceeding to the next drop.`,
+        ride,
+      });
+    }
+
+    // If no next drop, mark ride as completed
+    ride.status = "completed";
+    ride.driverId = riderId;
+    ride.completedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    await ride.save();
+
+    return res.status(200).json({ message: "Ride fully completed successfully.", ride });
+  } catch (error) {
+    console.error("Error completing ride:", error);
+    res.status(500).json({ message: "Error completing ride", error });
+  }
+});
 
 router.get("/get-ridestatus", async(req, res)=>{
   const { rideId } = req.body;
@@ -244,8 +458,16 @@ router.post("/cancel-ride", async (req, res) => {
 
   try {
     const ride = await Ride.findById(rideId);
-    if (!ride || ride.status !== 'pending') {
-      return res.status(400).json({ message: "Invalid ride status or ride not found." });
+   
+    if(ride && ride.status == 'confirmed'){
+      ride.status = 'cancelled';
+      ride.cancelledBy = 'driver';
+      ride.cancelledAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");;
+      ride.timeoutAt = null;
+      await ride.save();
+
+      // If the ride is still valid, return its status
+      res.status(200).json({ message: "Ride request cancelled successfully", ride });
     }
 
     // Requeue the ride request in RabbitMQ for other drivers
@@ -263,9 +485,11 @@ router.post("/cancel-ride", async (req, res) => {
     await driver.save(); */
 
     // Mark ride status as cancelled
+    if(ride && ride.status == 'pending'){
     addRideToCache(rideCache, riderId, rideId);
 
     res.status(200).json({ message: "Ride cancelled, requeued for other drivers", ride });
+    }
   } catch (error) {
     res.status(500).json({ message: "Error cancelling ride", error });
   }

@@ -11,19 +11,46 @@ const rideSchema = new mongoose.Schema({
     pickupLat: { type: Number, required: true },
     pickupLon: { type: Number, required: true },
   },
-  dropDetails: {
+  dropDetails1: {
     dropName: { type: String, required: true },
     dropPhone: { type: String, required: true },
     dropAddress: { type: String, required: true },
     dropLat: { type: Number, required: true },
     dropLon: { type: Number, required: true },
+
   },
+
+  dropDetails2: {
+    dropName: { type: String },
+    dropPhone: { type: String },
+    dropAddress: { type: String },
+    dropLat: { type: Number },
+    dropLon: { type: Number },
+
+  },
+
+  dropDetails3: {
+    dropName: { type: String },
+    dropPhone: { type: String },
+    dropAddress: { type: String },
+    dropLat: { type: Number },
+    dropLon: { type: Number },
+
+  },
+  
+  outStation: {type: Boolean},
+
+  currentDropNumber: {type : String},
+
+  cancelledBy : {type: String},
+
   fare: { type: Number, required: true }, // Fare for the ride
   distance: { type: Number, required: true }, // Distance in kilometers
   duration: { type: Number, required: true }, // Duration in minutes
   status: { type: String },
   createdAt: { type: String },
   confirmedAt: { type: String },
+  completedAt: {type: String},
   cancelledAt: { type: String },
   timeoutAt: { type: String },
 });
