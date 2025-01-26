@@ -39,11 +39,12 @@ const rideSchema = new mongoose.Schema({
   },
   
   outStation: {type: Boolean},
-
+  
   currentDropNumber: {type : String},
-
+  ratingByUser: {type:String},
+  ratingByDriver: {type:String},
   cancelledBy : {type: String},
-
+  reasonForCancellation: {type: String},
   fare: { type: Number, required: true }, // Fare for the ride
   distance: { type: Number, required: true }, // Distance in kilometers
   duration: { type: Number, required: true }, // Duration in minutes

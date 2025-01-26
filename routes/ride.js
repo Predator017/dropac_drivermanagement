@@ -6,6 +6,7 @@ const moment = require('moment-timezone');
 
 
 const NodeCache = require("node-cache");
+const { CancelledRidesByDriver, CompletedRidesByDriver, CompletedRidesByUser } = require("../models/driverridedata");
 
 const consumerCache = new NodeCache(); // Initialize NodeCache
 let rideCache = new NodeCache({ stdTTL: 600 });
@@ -401,7 +402,7 @@ router.post("/complete-ride", async (req, res) => {
 
     if (isNearDrop>1) {
       return res.status(400).json({
-        message: `You are not within 500 meters of ${ride.currentDropNumber}. Please move closer to the drop location and try again.`,
+        message: `You are not within 1 km of ${ride.currentDropNumber}. Please move closer to the drop location and try again.`,
       });
     }
 
@@ -419,6 +420,19 @@ router.post("/complete-ride", async (req, res) => {
         ride,
       });
     }
+
+    await CompletedRidesByDriver.findOneAndUpdate(
+      { driverId: riderId }, // Match the document by userId
+      { $addToSet: { rideIds: rideId } }, // Add rideId to the array (only if it doesn't already exist)
+      { new: true, upsert: true } // Create a new document if it doesn't exist
+    );
+
+    await CompletedRidesByUser.findOneAndUpdate(
+      { userId: ride.userId }, // Match the document by userId
+      { $addToSet: { rideIds: rideId } }, // Add rideId to the array (only if it doesn't already exist)
+      { new: true, upsert: true } // Create a new document if it doesn't exist
+    );
+
 
     // If no next drop, mark ride as completed
     ride.status = "completed";
@@ -452,16 +466,45 @@ router.get("/get-ridestatus", async(req, res)=>{
 });
 
 
+router.post("/rate-user", async(req, res) =>{
+    const {rideId, rating} = req.body;
+    try {
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+  
+      ride.ratingByDriver = rating;
+      await ride.save();
+  
+      // If the ride is still valid, return its status
+      res.status(200).json({ message: "Thanks for your rating, we appreciate that :)", ride });
+    } catch (error) {
+      res.status(500).json({ message: "Something went wrong, please try again later", error });
+    }
+
+});
+
+
 // Handle ride cancellation
 router.post("/cancel-ride", async (req, res) => {
-  const { riderId, rideId } = req.body;
+  const { riderId, rideId, reasonForCancellation } = req.body;
 
   try {
     const ride = await Ride.findById(rideId);
    
     if(ride && ride.status == 'confirmed'){
+
+      await CancelledRidesByDriver.findOneAndUpdate(
+        { driverId : riderId }, // Match the document by userId
+        { $addToSet: { rideIds: rideId } }, // Add rideId to the array (only if it doesn't already exist)
+        { new: true, upsert: true } // Create a new document if it doesn't exist
+      );
+    
+
       ride.status = 'cancelled';
       ride.cancelledBy = 'driver';
+      ride.reasonForCancellation = reasonForCancellation;
       ride.cancelledAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");;
       ride.timeoutAt = null;
       await ride.save();
@@ -486,6 +529,13 @@ router.post("/cancel-ride", async (req, res) => {
 
     // Mark ride status as cancelled
     if(ride && ride.status == 'pending'){
+
+      await CancelledRidesByDriver.findOneAndUpdate(
+        { driverId : riderId }, // Match the document by userId
+        { $addToSet: { rideIds: rideId } }, // Add rideId to the array (only if it doesn't already exist)
+        { new: true, upsert: true } // Create a new document if it doesn't exist
+      );
+    
     addRideToCache(rideCache, riderId, rideId);
 
     res.status(200).json({ message: "Ride cancelled, requeued for other drivers", ride });
