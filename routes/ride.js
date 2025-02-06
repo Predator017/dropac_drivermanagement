@@ -75,14 +75,20 @@ router.post("/assign-ride", async (req, res) => {
 
   if(outStation){
     const channel = getChannel();
+    let sentRideReq = false;
 
-  let sentRideReq = false;
-    await channel.assertQueue("outstation-ride-requests", { durable: true });
+  // Ensure the "ride-requests" queue exists (global queue for all ride requests)
+  await channel.assertQueue("outstation-ride-requests", { durable: true });
 
   console.log(`Driver ${riderId} is now listening for ride requests...`);
 
   // Check if the driver is already listening
-  
+ /*  if (consumerCache.has(riderId)) {
+    return res
+      .status(400)
+      .json({ message: "Driver is already listening for ride requests." });
+  } */
+
   // Start consuming ride requests
   const consumerTag = await channel.consume(
     "outstation-ride-requests",
@@ -137,6 +143,7 @@ router.post("/assign-ride", async (req, res) => {
     // Remove the consumer tag from the cache
     consumerCache.del(riderId);
   }
+
 
   }
 
@@ -261,62 +268,57 @@ router.post("/go-offline", async (req, res) => {
 // Handle ride confirmation
 router.post("/confirm-ride", async (req, res) => {
   const { riderId, rideId, outStation } = req.body;
-  const channel = getChannel();
 
   try {
     // Ensure the "ride-requests" queue exists
-
     if(outStation){
       const channel = getChannel();
       await channel.assertQueue("outstation-ride-requests", { durable: true });
 
-      let rideFound = false; // Flag to track if the ride is found in the queue
-      let msg;
-  
-      // Loop through the messages in the queue to find the rideId
-      do {
-        msg = await channel.get("outstation-ride-requests", { noAck: false });
-        console.log('hello');
-        console.log(msg);
-        if (msg) {
-          const rideRequest = JSON.parse(msg.content.toString());
-  
-          if (rideRequest._id === rideId) {
-            console.log('hello');
-            // Ride found in the queue, acknowledge (delete) it
-            channel.ack(msg);
-            rideFound = true;
-            break;
-          } else {
-            // Requeue the message for other drivers to process
-            channel.nack(msg, false, true);
-          }
+    let rideFound = false; // Flag to track if the ride is found in the queue
+    let msg;
+
+    // Loop through the messages in the queue to find the rideId
+    do {
+      msg = await channel.get("outstation-ride-requests", { noAck: false });
+
+      if (msg) {
+        const rideRequest = JSON.parse(msg.content.toString());
+
+        if (rideRequest._id === rideId) {
+          // Ride found in the queue, acknowledge (delete) it
+          channel.ack(msg);
+          rideFound = true;
+          break;
+        } else {
+          // Requeue the message for other drivers to process
+          channel.nack(msg, false, true);
         }
-      } while (msg);
-  
-      if (!rideFound) {
-        // Ride not found in the queue, return an appropriate response
-        
-        return res.status(400).json({
-          message: "You missed the ride. It has already been confirmed by another rider.",
-        });
       }
-  
-      // Proceed to confirm the ride in the database
-      const ride = await Ride.findById(rideId);
-      if (!ride || ride.status !== "pending") {
-        return res.status(400).json({ message: "Invalid ride status or ride not found." });
-      }
-  
-      // Save the ride with driver info
-      ride.status = "confirmed";
-      ride.driverId = riderId;
-      ride.otp = Math.floor(1000 + Math.random() * 9000);
-      ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
-      ride.timeoutAt = null;
-      await ride.save();
-  
-      res.status(200).json({ message: "Ride confirmed successfully", ride });
+    } while (msg);
+
+    if (!rideFound) {
+      // Ride not found in the queue, return an appropriate response
+      return res.status(400).json({
+        message: "You missed the ride. It has already been confirmed by another rider.",
+      });
+    }
+
+    // Proceed to confirm the ride in the database
+    const ride = await Ride.findById(rideId);
+    if (!ride || ride.status !== "pending") {
+      return res.status(400).json({ message: "Invalid ride status or ride not found." });
+    }
+
+    // Save the ride with driver info
+    ride.status = "confirmed";
+    ride.driverId = riderId;
+    ride.otp = Math.floor(1000 + Math.random() * 9000);
+    ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    ride.timeoutAt = null;
+    await ride.save();
+
+    res.status(200).json({ message: "Ride confirmed successfully", ride });
     }
     else{
       const channel = getChannel();
