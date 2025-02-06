@@ -274,7 +274,8 @@ router.post("/confirm-ride", async (req, res) => {
     if(outStation){
       const channel = getChannel();
       await channel.assertQueue("outstation-ride-requests", { durable: true });
-
+      console.log('hello');
+      console.log(await channel.assertQueue("ride-requests", { durable: true }));
     let rideFound = false; // Flag to track if the ride is found in the queue
     let msg;
 
@@ -324,6 +325,8 @@ router.post("/confirm-ride", async (req, res) => {
       const channel = getChannel();
       await channel.assertQueue("ride-requests", { durable: true });
 
+      console.log('hello');
+      console.log(await channel.assertQueue("ride-requests", { durable: true }));
     let rideFound = false; // Flag to track if the ride is found in the queue
     let msg;
 
