@@ -144,8 +144,9 @@ router.post("/assign-ride", async (req, res) => {
 
   else{
 
+    const channel = getChannel();
+    let sentRideReq = false;
 
-    
   // Ensure the "ride-requests" queue exists (global queue for all ride requests)
   await channel.assertQueue("ride-requests", { durable: true });
 
@@ -218,6 +219,7 @@ router.post("/assign-ride", async (req, res) => {
   
     }
     catch (error) {
+      console.log(error);
       res.status(500).json({ message: "Ride Assignment failed", error });
     }
 });
@@ -265,6 +267,7 @@ router.post("/confirm-ride", async (req, res) => {
     // Ensure the "ride-requests" queue exists
 
     if(outStation){
+      const channel = getChannel();
       await channel.assertQueue("outstation-ride-requests", { durable: true });
 
       let rideFound = false; // Flag to track if the ride is found in the queue
@@ -273,11 +276,13 @@ router.post("/confirm-ride", async (req, res) => {
       // Loop through the messages in the queue to find the rideId
       do {
         msg = await channel.get("outstation-ride-requests", { noAck: false });
-  
+        console.log('hello');
+        console.log(msg);
         if (msg) {
           const rideRequest = JSON.parse(msg.content.toString());
   
           if (rideRequest._id === rideId) {
+            console.log('hello');
             // Ride found in the queue, acknowledge (delete) it
             channel.ack(msg);
             rideFound = true;
@@ -291,6 +296,7 @@ router.post("/confirm-ride", async (req, res) => {
   
       if (!rideFound) {
         // Ride not found in the queue, return an appropriate response
+        
         return res.status(400).json({
           message: "You missed the ride. It has already been confirmed by another rider.",
         });
@@ -313,6 +319,7 @@ router.post("/confirm-ride", async (req, res) => {
       res.status(200).json({ message: "Ride confirmed successfully", ride });
     }
     else{
+      const channel = getChannel();
       await channel.assertQueue("ride-requests", { durable: true });
 
     let rideFound = false; // Flag to track if the ride is found in the queue
