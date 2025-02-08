@@ -40,20 +40,49 @@ function isRideInCache(cache, riderId, rideId) {
 
 
 // Helper function to calculate distance (you can replace this with a better formula)
-function calculateDistance(userCoordinates, driverCoordinates) {
+
+
+async function calculateDistance(userCoordinates, driverCoordinates) {
   const [userLat, userLon] = userCoordinates;
   const [driverLat, driverLon] = driverCoordinates;
 
-  const R = 6371; // Radius of the Earth in km
-  const dLat = deg2rad(driverLat - userLat);
-  const dLon = deg2rad(driverLon - userLon);
+  const apiKey = process.env.MAPS_API; // Ensure your API key is set correctly
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${userLat},${userLon}&destination=${driverLat},${driverLon}&mode=driving&sensor=false&key=${apiKey}`;
+
+  try {
+    // Fetch data from Google Maps API (await fetch)
+    const response = await fetch(url);
+    const data = await response.json(); // Wait for JSON parsing
+
+    if (data.routes?.[0]?.legs?.[0]) {
+      const distanceText = data.routes[0].legs[0].distance.text; // Distance as a string (e.g., "12.5 km")
+      console.log(distanceText);
+      const distanceInKm = parseFloat(distanceText.replace(" km", "")); // Convert to number
+      return distanceInKm;
+    } else {
+      throw new Error("No route found");
+    }
+  } catch (error) {
+    console.error("Error fetching distance from Google Maps API:", error);
+
+    // Fallback to Haversine formula if API fails
+    return haversineDistance(userLat, userLon, driverLat, driverLon);
+  }
+}
+
+// Haversine Formula (Fallback)
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(userLat)) * Math.cos(deg2rad(driverLat)) *
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in km
 }
+
 
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
@@ -80,8 +109,9 @@ router.post("/assign-ride", async (req, res) => {
 
     console.log(`Driver ${riderId} is now listening for ride requests...`);
 
-    // Start consuming messages
-    const consumerTag = await channel.consume(queueName, async (msg) => {
+    let consumerTag; 
+
+      consumerTag  = await channel.consume(queueName, async (msg) => {
       if (!msg) return;
 
       const rideRequest = JSON.parse(msg.content.toString());
@@ -92,27 +122,29 @@ router.post("/assign-ride", async (req, res) => {
 
       // If the same request is sent more than once, cancel it
       if (rideCache[riderId][rideRequest._id] > 1) {
-        console.log(`Driver ${riderId} received ride request too many times. Cancelling.`);
+        //console.log(`Driver ${riderId} received ride request too many times. Cancelling.`);
 
         // ❗ Explicitly nack the message before cancelling the consumer
         channel.nack(msg, false, true); // ✅ This moves message back to ready state
 
         delete rideCache[riderId][rideRequest._id];
-        await channel.cancel(consumerTag.consumerTag);
+        if (consumerTag?.consumerTag) {
+          await channel.cancel(consumerTag.consumerTag);
+        }
         return;
       }
 
       // Calculate distance between driver and user
-      const distance = calculateDistance(
+      const distance = await calculateDistance(
         [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
         driverLocation.coordinates
       );
+      
 
       console.log(`Distance to user: ${distance} km`);
 
       if (distance <= 10) {
         console.log(`Driver ${riderId} is within 10 km. Sending the ride request.`);
-
         if (!res.headersSent) {
           sentRideReq = true;
           res.status(200).json({ message: "Ride request sent to driver", rideRequest });
@@ -125,7 +157,9 @@ router.post("/assign-ride", async (req, res) => {
     }, { noAck: false }); // ❗ Set `noAck: false` so we have control over message acknowledgment
 
     if (sentRideReq) {
-      await channel.cancel(consumerTag.consumerTag);
+      if (consumerTag?.consumerTag) {
+        await channel.cancel(consumerTag.consumerTag);
+      }
     }
 
   } catch (error) {
