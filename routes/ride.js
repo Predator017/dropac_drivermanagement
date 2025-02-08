@@ -96,6 +96,10 @@ const router = express.Router();
 router.post("/assign-ride", async (req, res) => {
   const { riderId, outStation, driverLocation } = req.body;
 
+  const driver = await Driver.findById(riderId);
+  driver.online = true;
+  await driver.save();
+  
   try {
     const channel = getChannel();
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
@@ -247,6 +251,9 @@ router.post("/go-offline", async (req, res) => {
   const { riderId } = req.body;
   const channel = getChannel();
 
+  const driver = await Driver.findById(riderId);
+  driver.online = false;
+  await driver.save();
   // Check if the consumer exists in the cache
   if (!consumerCache.has(riderId)) {
     return res
