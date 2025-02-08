@@ -308,7 +308,7 @@ router.post("/complete-ride", async (req, res) => {
   try {
     const ride = await Ride.findById(rideId);
 
-    if (!ride || ride.status !== "confirmed") {
+    if (!ride || ride.status !== "started" ) {
       return res.status(400).json({ message: "Invalid ride status or ride not found." });
     }
 
