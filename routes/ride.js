@@ -251,9 +251,7 @@ router.post("/go-offline", async (req, res) => {
   const { riderId } = req.body;
   const channel = getChannel();
 
-  const driver = await Driver.findById(riderId);
-  driver.online = false;
-  await driver.save();
+  await Driver.findByIdAndUpdate(riderId, { online: false });
   // Check if the consumer exists in the cache
   if (!consumerCache.has(riderId)) {
     return res
@@ -314,7 +312,7 @@ router.post("/complete-ride", async (req, res) => {
 
     // Determine the current drop details based on `currentDropNumber`
     let currentDrop;
-    let nextDrop;
+    let nextDrop; 
     switch (ride.currentDropNumber) {
       case "drop1":
         currentDrop = ride.dropDetails1;
