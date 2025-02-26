@@ -254,9 +254,7 @@ router.post("/go-offline", async (req, res) => {
   await Driver.findByIdAndUpdate(riderId, { online: false });
   // Check if the consumer exists in the cache
   if (!consumerCache.has(riderId)) {
-    return res
-      .status(400)
-      .json({ message: "Driver is not currently listening for ride requests." });
+    res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
   }
 
   try {
