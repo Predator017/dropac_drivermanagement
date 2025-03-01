@@ -157,7 +157,7 @@ router.post("/assign-ride", async (req, res) => {
 
       // ❗ Always nack the message to ensure it's available for other drivers
       channel.nack(msg, false, true); // ✅ Moves the message back to the ready queue
-
+      await channel.recover(); 
     }, { noAck: false }); // ❗ Set `noAck: false` so we have control over message acknowledgment
 
     if (sentRideReq) {
