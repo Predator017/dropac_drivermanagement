@@ -277,21 +277,31 @@ router.post("/go-offline", async (req, res) => {
 
 
 
-router.post("/start-ride", async(req, res) => {
-  const { rideId } = req.body;
+router.post("/start-ride", async (req, res) => {
+  const { rideId, otp } = req.body;
 
   try {
     const ride = await Ride.findById(rideId);
-   
-    if(ride && ride.status == 'confirmed'){
 
-      ride.status = 'started';
-      await ride.save();
-
-      res.status(200).json({ message: "Ride started successfully", ride });
+    if (!ride) {
+      return res.status(404).json({ message: "Ride not found" });
     }
 
+    if (ride.status !== "confirmed") {
+      return res.status(400).json({ message: "Ride cannot be started. Invalid status." });
+    }
+
+    if (ride.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP. Please try again." });
+    }
+
+    // OTP is correct, start the ride
+    ride.status = "started";
+    await ride.save();
+
+    res.status(200).json({ message: "Ride started successfully", ride });
   } catch (error) {
+    console.error("Error starting ride:", error);
     res.status(500).json({ message: "Error starting ride", error });
   }
 });
