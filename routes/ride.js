@@ -282,26 +282,20 @@ router.post("/start-ride", async (req, res) => {
 
   try {
     const ride = await Ride.findById(rideId);
+   
+    if(ride && ride.status == 'confirmed'){
 
-    if (!ride) {
-      return res.status(404).json({ message: "Ride not found" });
+      if (ride.otp !== otp) {
+        return res.status(400).json({ message: "Invalid OTP. Please try again." });
+      }
+
+      ride.status = 'started';
+      await ride.save();
+
+      res.status(200).json({ message: "Ride started successfully", ride });
     }
 
-    if (ride.status !== "confirmed") {
-      return res.status(400).json({ message: "Ride cannot be started. Invalid status." });
-    }
-
-    if (ride.otp !== otp) {
-      return res.status(400).json({ message: "Invalid OTP. Please try again." });
-    }
-
-    // OTP is correct, start the ride
-    ride.status = "started";
-    await ride.save();
-
-    res.status(200).json({ message: "Ride started successfully", ride });
   } catch (error) {
-    console.error("Error starting ride:", error);
     res.status(500).json({ message: "Error starting ride", error });
   }
 });
@@ -309,7 +303,7 @@ router.post("/start-ride", async (req, res) => {
 
 
 router.post("/complete-ride", async (req, res) => {
-  const { rideId, riderId, driverLocation } = req.body;
+  const { rideId, riderId } = req.body;
 
   try {
     const ride = await Ride.findById(rideId);
@@ -339,14 +333,14 @@ router.post("/complete-ride", async (req, res) => {
     }
 
     // Check if the driver is within 500 meters of the current drop location
-    const isNearDrop = calculateDistance(driverLocation.coordinates, [currentDrop.dropLat, currentDrop.dropLon]);
+    /* const isNearDrop = calculateDistance(driverLocation.coordinates, [currentDrop.dropLat, currentDrop.dropLon]);
 
     if (isNearDrop>1) {
       return res.status(400).json({
         message: `You are not within 1 km of ${ride.currentDropNumber}. Please move closer to the drop location and try again.`,
       });
     }
-
+ */
     
     // Proceed based on whether there's a next drop
     if (JSON.stringify(nextDrop) !== "{}") {
