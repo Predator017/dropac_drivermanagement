@@ -99,73 +99,76 @@ router.post("/assign-ride", async (req, res) => {
   const driver = await Driver.findById(riderId);
   driver.online = true;
   await driver.save();
-  
+
   try {
     const channel = getChannel();
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
     let sentRideReq = false;
 
     // Ensure queue exists
-    await channel.assertQueue(queueName, {
-      durable: true,
-      
-    });
+    await channel.assertQueue(queueName, { durable: true });
 
     console.log(`Driver ${riderId} is now listening for ride requests...`);
 
-    let consumerTag; 
+    let consumerTag;
 
-      consumerTag  = await channel.consume(queueName, async (msg) => {
-      if (!msg) return;
+    consumerTag = await channel.consume(
+      queueName,
+      async (msg) => {
+        if (!msg) return;
 
-      const rideRequest = JSON.parse(msg.content.toString());
+        const rideRequest = JSON.parse(msg.content.toString());
 
-      // Track ride request attempts per driver
-      if (!rideCache[riderId]) rideCache[riderId] = {};
-      rideCache[riderId][rideRequest._id] = (rideCache[riderId][rideRequest._id] || 0) + 1;
+        // Track ride request attempts per driver
+        if (!rideCache[riderId]) rideCache[riderId] = {};
+        rideCache[riderId][rideRequest._id] =
+          (rideCache[riderId][rideRequest._id] || 0) + 1;
 
-      // If the same request is sent more than once, cancel it
-      if (rideCache[riderId][rideRequest._id] > 1) {
-        //console.log(`Driver ${riderId} received ride request too many times. Cancelling.`);
+        // If the same request is sent more than once, cancel it
+        if (rideCache[riderId][rideRequest._id] > 1) {
+          console.log(
+            `Driver ${riderId} received ride request too many times. Cancelling.`
+          );
 
-        // ❗ Explicitly nack the message before cancelling the consumer
-        channel.nack(msg, false, true); // ✅ This moves message back to ready state
+          // ✅ Return message to queue immediately (prevents unacked state)
+          channel.reject(msg, true);
 
-        delete rideCache[riderId][rideRequest._id];
-        if (consumerTag?.consumerTag) {
-          await channel.cancel(consumerTag.consumerTag);
+          delete rideCache[riderId][rideRequest._id];
+          if (consumerTag?.consumerTag) {
+            await channel.cancel(consumerTag.consumerTag);
+          }
+          return;
         }
-        return;
-      }
 
-      // Calculate distance between driver and user
-      const distance = await calculateDistance(
-        [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
-        driverLocation.coordinates
-      );
-      
+        // Calculate distance between driver and user
+        const distance = await calculateDistance(
+          [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
+          driverLocation.coordinates
+        );
 
-      console.log(`Distance to user: ${distance} km`);
+        console.log(`Distance to user: ${distance} km`);
 
-      if (distance <= 10) {
-        console.log(`Driver ${riderId} is within 10 km. Sending the ride request.`);
-        if (!res.headersSent) {
-          sentRideReq = true;
-          res.status(200).json({ message: "Ride request sent to driver", rideRequest });
+        if (distance <= 10) {
+          console.log(
+            `Driver ${riderId} is within 10 km. Sending the ride request.`
+          );
+          if (!res.headersSent) {
+            sentRideReq = true;
+            res.status(200).json({ message: "Ride request sent to driver", rideRequest });
+          }
         }
-      }
 
-      // ❗ Always nack the message to ensure it's available for other drivers
-      channel.nack(msg, false, true); // ✅ Moves the message back to the ready queue
-      
-    }, { noAck: false }); // ❗ Set `noAck: false` so we have control over message acknowledgment
+        // ✅ Always return message to the queue if not processed
+        channel.reject(msg, true); // Moves the message back to "ready" queue
+      },
+      { noAck: false } // ❗ Keeps messages under manual acknowledgment control
+    );
 
     if (sentRideReq) {
       if (consumerTag?.consumerTag) {
         await channel.cancel(consumerTag.consumerTag);
       }
     }
-
   } catch (error) {
     console.error("Error in assign-ride:", error);
     if (!res.headersSent) {
