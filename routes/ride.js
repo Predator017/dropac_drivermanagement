@@ -185,66 +185,58 @@ router.post("/confirm-ride", async (req, res) => {
   const { riderId, rideId, outStation } = req.body;
 
   try {
-    const channel = getChannel();
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
 
-    // 🔹 Check if the ride is already confirmed in the database
+    // 🔹 Step 1: Check if ride is already confirmed
     const ride = await Ride.findById(rideId);
     if (!ride) {
       return res.status(404).json({ message: "Ride not found." });
     }
     if (ride.status === "confirmed") {
+      // 🔹 Remove the ride from queue in the background when another driver sees it's confirmed
+      removeRideFromQueue(queueName, rideId);
       return res.status(400).json({ message: "Ride already confirmed by another driver." });
     }
 
-    // 🔹 Ensure queue exists
-    await channel.assertQueue(queueName, {
-      durable: true,
-      
-    });
+    // 🔹 Step 2: Confirm the ride in DB first
+    ride.status = "confirmed";
+    ride.driverId = riderId;
+    ride.otp = Math.floor(1000 + Math.random() * 9000);
+    ride.confirmedAt = new Date();
+    await ride.save();
 
-    let msg = await channel.get(queueName, { noAck: false });
-
-    // 🔹 If no messages were found, recover unacked messages and retry once
-    if (!msg) {
-      console.log("No pending messages. Recovering unacked messages...");
-      await channel.recover();
-      msg = await channel.get(queueName, { noAck: false });
-    }
-
-    if (!msg) {
-      return res.status(400).json({
-        message: "You missed the ride. It has already been confirmed by another driver.",
-      });
-    }
-
-    const rideRequest = JSON.parse(msg.content.toString());
-
-    if (rideRequest._id === rideId) {
-      // ✅ Confirm the ride
-      ride.status = "confirmed";
-      ride.driverId = riderId;
-      ride.otp = Math.floor(1000 + Math.random() * 9000);
-      ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
-      ride.timeoutAt = null;
-      await ride.save();
-
-      channel.ack(msg); // ✅ Acknowledge the message so it's removed from queue
-
-      return res.status(200).json({ message: "Ride confirmed successfully", ride });
-    } else {
-      channel.nack(msg, false, true); // Put it back in queue
-    }
-
-    return res.status(400).json({
-      message: "You missed the ride. It has already been confirmed by another driver.",
-    });
+    // 🔹 Step 3: Return response immediately
+    return res.status(200).json({ message: "Ride confirmed successfully", ride });
 
   } catch (error) {
     console.error("Error confirming ride:", error);
-    res.status(500).json({ message: "Error confirming ride", error });
+    return res.status(500).json({ message: "Error confirming ride", error });
   }
 });
+
+// 🔹 Remove the ride from queue in the background
+async function removeRideFromQueue(queueName, rideId) {
+  setImmediate(async () => {
+    try {
+      const channel = getChannel();
+      let msg;
+      while ((msg = await channel.get(queueName, { noAck: false }))) {
+        const rideRequest = JSON.parse(msg.content.toString());
+        if (rideRequest._id === rideId) {
+          channel.ack(msg); // ✅ Remove from queue
+          console.log(`Ride ${rideId} removed from queue.`);
+          return; // Exit loop once ride is removed
+        } else {
+          channel.nack(msg, false, true); // Put non-matching messages back
+        }
+      }
+    } catch (error) {
+      console.error("Error removing ride from queue:", error);
+    }
+  });
+}
+
+
 
 
 
