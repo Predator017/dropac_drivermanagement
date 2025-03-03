@@ -49,6 +49,7 @@ const rideSchema = new mongoose.Schema({
   distance: { type: Number, required: true }, // Distance in kilometers
   duration: { type: Number, required: true }, // Duration in minutes
   status: { type: String },
+  paymentStatus: {type: Boolean},
   createdAt: { type: String },
   confirmedAt: { type: String },
   completedAt: {type: String},

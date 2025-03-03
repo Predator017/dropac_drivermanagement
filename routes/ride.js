@@ -377,6 +377,21 @@ router.post("/complete-ride", async (req, res) => {
   }
 });
 
+
+router.put('/payment-status/:rideId', async (req, res) => {
+    try {
+        const ride = await Ride.findById(req.params.rideId);
+        if (!ride) return res.status(404).json({ error: 'Ride not found' });
+
+        ride.paymentStatus = req.body.status;
+        await ride.save();
+
+        res.status(200).json({ message: 'Payment status updated successfully', ride });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update payment status', details: error.message });
+    }
+});
+
 router.get("/get-ridestatus", async(req, res)=>{
   const { rideId } = req.body;
   try {
