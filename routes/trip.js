@@ -36,33 +36,7 @@ router.post('/create', async (req, res) => {
 
 // Get all trip details for particular driver for today
 
-router.get('/driver/:driverId', async (req, res) => {
-    try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
-        // Fetch trips
-        const trips = await Trip.find({ 
-            driverId: req.params.driverId, 
-            createdAt: { $gte: today },
-            status: 'completed'
-        });
-
-        // Fetch driver document
-        const driver = await Driver.findById(req.params.driverId);
-        if (!driver) {
-            return res.status(404).json({ error: 'Driver not found' });
-        }
-
-        // Access walletBalance from driver document
-        const walletBalance = driver.walletBalance;
-
-        // Combine trips and walletBalance into a single response object
-        res.status(200).json({ trips, walletBalance });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve trips', details: error.message });
-    }
-});
 
 // api to mark destination reached by the driver to the customer
 
@@ -118,30 +92,6 @@ router.get('/transaction/:driverId', async (req, res) => {
 
 // Get all trip details for particular driver till date babsed on date params filter this out
 
-router.get('/driver/:driverId/:date', async (req, res) => {
-    try {
-        const date = new Date(req.params.date);
-        const nextDate = new Date(date);
-        nextDate.setDate(date.getDate() + 1);
-        const trips = await Trip.find({ 
-            driverId: req.params.driverId, 
-            createdAt: { $gte: date, $lt: nextDate },
-            status: 'completed'
-        });
-        const driver = await Driver.findById(req.params.driverId);
-        if (!driver) {
-            return res.status(404).json({ error: 'Driver not found' });
-        }
-
-        // Access walletBalance from driver document
-        const walletBalance = driver.walletBalance;
-
-        // Combine trips and walletBalance into a single response object
-        res.status(200).json({ trips, walletBalance });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve trips', details: error.message });
-    }
-});
 
 // if the driver was assigned a trip and he has completed the trip, then update the status of the trip with otp verification using the otp service
 

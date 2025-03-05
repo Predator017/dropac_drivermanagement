@@ -384,7 +384,11 @@ router.put('/payment-status/:rideId', async (req, res) => {
         if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
         ride.paymentStatus = req.body.status;
+        ride.driverShare = (ride.fare)*0.82;
+        ride.dropacShare = (ride.fare)*0.18;
         await ride.save();
+
+        await Driver.findByIdAndUpdate(ride.driverId, {walletBalance: -1 * (ride.fare) *0.18});
 
         res.status(200).json({ message: 'Payment status updated successfully', ride });
     } catch (error) {
@@ -409,6 +413,79 @@ router.get("/get-ridestatus", async(req, res)=>{
   }
 
 });
+
+
+router.get('/all-transactions/:driverId', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set today's start time to midnight
+
+    // Fetch rides excluding today's transactions
+    const rides = await Ride.find({
+        driverId: req.params.driverId,
+        status: "completed",
+        createdAt: { $lt: today.toISOString() } // Fetch only rides before today
+    })
+    .sort({ createdAt: -1 }); // Sort in descending order (newest first)
+
+    // Fetch driver document
+    const driver = await Driver.findById(req.params.driverId);
+    if (!driver) {
+        return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Access walletBalance from driver document
+    const walletBalance = driver.walletBalance;
+
+    // Combine rides and walletBalance into a single response object
+    res.status(200).json({ rides, walletBalance });
+} catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
+}
+});
+
+router.get('/transaction/:driverId/:date', async (req, res) => {
+  try {
+      const date = new Date(req.params.date);
+      const nextDate = new Date(date);
+      nextDate.setDate(date.getDate() + 1);
+
+      // Fetch rides with createdAt stored as a string
+      const rides = await Ride.aggregate([
+          {
+              $match: {
+                  driverId: req.params.driverId,
+                  status: "completed",
+                  $expr: {
+                      $and: [
+                          { $gte: [{ $dateFromString: { dateString: "$createdAt" } }, date] },
+                          { $lt: [{ $dateFromString: { dateString: "$createdAt" } }, nextDate] }
+                      ]
+                  }
+              }
+          }
+      ]).sort({ createdAt: -1 });
+
+      // Fetch driver document
+      const driver = await Driver.findById(req.params.driverId);
+      if (!driver) {
+          return res.status(404).json({ error: 'Driver not found' });
+      }
+
+      // Access walletBalance from driver document
+      const walletBalance = driver.walletBalance;
+
+      // Combine rides and walletBalance into a single response object
+      res.status(200).json({ rides, walletBalance });
+  } catch (error) {
+      res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
+  }
+});
+
+
+
+
+
 
 
 router.post("/rate-user", async(req, res) =>{

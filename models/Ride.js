@@ -46,6 +46,8 @@ const rideSchema = new mongoose.Schema({
   ratingByDriver: {type:String},
   currentDropNumber: {type : String},  
   fare: { type: Number, required: true }, // Fare for the ride
+  driverShare : {type:Number},
+  dropacShare : {type:Number},
   distance: { type: Number, required: true }, // Distance in kilometers
   duration: { type: Number, required: true }, // Duration in minutes
   status: { type: String },
