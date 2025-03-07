@@ -4,6 +4,9 @@ const rideSchema = new mongoose.Schema({
   userId: { type: String },
   otp: { type: String },
   driverId: { type: String },
+  driverName: {type: String},
+  vehicleType: { type: String },
+  vehicleNumber: { type: String },
   pickupDetails: {
     pickupName: { type: String, required: true },
     pickupPhone: { type: String, required: true },

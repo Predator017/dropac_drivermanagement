@@ -199,11 +199,19 @@ router.post("/confirm-ride", async (req, res) => {
     }
 
     // 🔹 Step 2: Confirm the ride in DB first
+
+    const driver = await Driver.findById(riderId);
+
     ride.status = "confirmed";
     ride.driverId = riderId;
+    ride.driverName = driver.name;
+    ride.vehicleType = driver.vehicleType;
+    ride.vehicleNumber = driver.vehicleNumber;
     ride.otp = Math.floor(1000 + Math.random() * 9000);
     ride.confirmedAt = new Date();
     await ride.save();
+
+    
 
     // 🔹 Step 3: Return response immediately
     return res.status(200).json({ message: "Ride confirmed successfully", ride });
