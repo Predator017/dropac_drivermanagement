@@ -208,7 +208,7 @@ router.post("/confirm-ride", async (req, res) => {
     ride.vehicleType = driver.vehicleType;
     ride.vehicleNumber = driver.vehicleNumber;
     ride.otp = Math.floor(1000 + Math.random() * 9000);
-    ride.confirmedAt = new Date();
+    ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
     await ride.save();
 
     

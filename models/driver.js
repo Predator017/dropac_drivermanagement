@@ -28,7 +28,7 @@ const driverSchema = new mongoose.Schema({
   cleardues: [{
     paymentId: { type: String },
     amount: { type: Number },
-    time: { type: Date, default: Date.now }
+    time: { type: String }
   }],
   
   willDrive: { type: Boolean },

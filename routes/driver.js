@@ -9,6 +9,8 @@ const { sendToQueue } = require('../rabbitmq');
 //const { sendPushNotification } = require('../sendPushnotification');
 const Vehicle = require('../models/vehicle');
 const { status } = require('express/lib/response');
+const moment = require('moment-timezone');
+
 // Register Driver
 
 const NodeCache = require("node-cache");
@@ -365,10 +367,12 @@ router.post('/clear-dues/:driverId', async (req, res) => {
     // Clear or make the part 20 of the driver wallet balance to 0
     driver.walletBalance.part20 = 0;
 
+    const time = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
     // Add the new transaction to the cleardues array
     driver.cleardues.push({
       paymentId,
-      amount
+      amount,
+      time
     });
 
     await driver.save();
