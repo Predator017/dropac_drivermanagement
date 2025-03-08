@@ -389,6 +389,8 @@ router.post("/complete-ride", async (req, res) => {
 router.put('/payment-status/:rideId', async (req, res) => {
     try {
         const ride = await Ride.findById(req.params.rideId);
+        if (ride.paymentStatus == true) return res.status(200).json({ status: 'Payment already updated for this ride' });
+        const driver = await Driver.findById(ride.driverId);
         if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
         ride.paymentStatus = req.body.status;
@@ -396,7 +398,30 @@ router.put('/payment-status/:rideId', async (req, res) => {
         ride.dropacShare = (ride.fare)*0.18;
         await ride.save();
 
-        await Driver.findByIdAndUpdate(ride.driverId, {walletBalance: -1 * (ride.fare) *0.18});
+
+        const todayDate = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
+    
+        // Call the existing API internally
+        const response = await fetch(`https://dropac-drivermanagement.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`);
+        const data = await response.json();
+
+
+        const { rides, walletBalance } = data;
+
+        const fare = ride.fare;
+        const part80 = fare * 0.82;
+        const part20 = fare * 0.18;
+
+        if (rides.length === 0) {
+          driver.walletBalance.part80 = 0;
+        }
+        
+
+        driver.walletBalance.total += fare;
+        driver.walletBalance.part80 += part80;
+        driver.walletBalance.part20 += part20;
+
+        await driver.save();
 
         res.status(200).json({ message: 'Payment status updated successfully', ride });
     } catch (error) {

@@ -20,7 +20,11 @@ const driverSchema = new mongoose.Schema({
   rating: { type: Number, default: 0 },
   orders: { type: Number, default: 0 },
   months: { type: Number, default: 0 },
-  walletBalance: {type:Number},
+  walletBalance: {
+    total: { type: Number, default: 0 },
+    part80: { type: Number, default: 0 },
+    part20: { type: Number, default: 0 }
+  },
   cleardues: [{
     paymentId: { type: String },
     amount: { type: Number },
