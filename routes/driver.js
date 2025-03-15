@@ -101,7 +101,8 @@ router.post('/verify-otp', async (req, res) => {
         const DriverData = driverCache.get(mobile);
         const name = DriverData.name;
         const email = DriverData.email;
-        const newDriver = new Driver({ mobile, name, email });
+        const createdAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+        const newDriver = new Driver({ mobile, name, email, createdAt });
         await newDriver.save();
       }
       const driverr = await Driver.findOne({ mobile });
