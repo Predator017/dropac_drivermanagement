@@ -344,14 +344,15 @@ router.post("/complete-ride", async (req, res) => {
       });
     }
  */
-    
+   
     // Proceed based on whether there's a next drop
-    if (JSON.stringify(nextDrop) !== "{}") {
+    if (JSON.stringify(nextDrop) !== "{}" && nextDrop != null) {
       // Update currentDropNumber to the next drop
       const presentDropNumber = ride.currentDropNumber;
       ride.currentDropNumber = nextDrop === ride.dropDetails2 ? "drop2" : "drop3";
       ride.driverId = riderId;
       await ride.save();
+
 
       return res.status(200).json({
         message: `Ride at ${presentDropNumber} completed. Now proceeding to the next drop.`,

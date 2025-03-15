@@ -207,6 +207,8 @@ router.post('/update-driver', async (req, res) => {
       };
     }
 
+    console.log(location);
+
     // Save the updated driver
     await driver.save();
 
