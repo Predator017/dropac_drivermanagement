@@ -183,63 +183,127 @@ router.post("/assign-ride", async (req, res) => {
 // Confirm ride function
 router.post("/confirm-ride", async (req, res) => {
   const { riderId, rideId, outStation } = req.body;
-
   try {
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
-
     // 🔹 Step 1: Check if ride is already confirmed
     const ride = await Ride.findById(rideId);
     if (!ride) {
       return res.status(404).json({ message: "Ride not found." });
     }
     if (ride.status === "confirmed") {
-      // 🔹 Remove the ride from queue in the background when another driver sees it's confirmed
-      removeRideFromQueue(queueName, rideId);
+      // 🔹 Remove the ride from queue when another driver sees it's confirmed
+      try {
+        await consumeRideFromQueue(queueName, rideId);
+      } catch (error) {
+        console.error("Error consuming already confirmed ride from queue:", error);
+      }
       return res.status(400).json({ message: "Ride already confirmed by another driver." });
     }
 
+    if((ride.outStation === true && outStation === false) || (ride.outStation ===false && outStation === true)) {
+      return res.status(404).json({ message: "Please pass the outStation param correclty" });
+    }
+
     // 🔹 Step 2: Confirm the ride in DB first
-
     const driver = await Driver.findById(riderId);
-
     ride.status = "confirmed";
     ride.driverId = riderId;
     ride.driverName = driver.name;
     ride.vehicleType = driver.vehicleType;
     ride.vehicleNumber = driver.vehicleNumber;
     ride.otp = Math.floor(1000 + Math.random() * 9000);
-    ride.confirmedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    ride.confirmedAt = moment().format("YYYY-MM-DD HH:mm:ss");
     await ride.save();
-
+   
+    // 🔹 Step 3: Remove from queue by consuming the message
+    try {
+      await consumeRideFromQueue(queueName, rideId);
+    } catch (error) {
+      console.error("Error consuming ride from queue:", error);
+      // Continue with the response even if queue consumption fails
+    }
     
-
-    // 🔹 Step 3: Return response immediately
+    // 🔹 Step 4: Return response
     return res.status(200).json({ message: "Ride confirmed successfully", ride });
-
   } catch (error) {
     console.error("Error confirming ride:", error);
     return res.status(500).json({ message: "Error confirming ride", error });
   }
 });
 
-// 🔹 Remove the ride from queue in the background
-async function removeRideFromQueue(queueName, rideId) {
-  setImmediate(async () => {
+// Completely revised function to properly consume and filter queue messages
+async function consumeRideFromQueue(queueName, targetRideId) {
+  return new Promise(async (resolve, reject) => {
     try {
       const channel = getChannel();
-      let msg;
-      while ((msg = await channel.get(queueName, { noAck: false }))) {
-        const rideRequest = JSON.parse(msg.content.toString());
-        if (rideRequest._id === rideId) {
-          channel.ack(msg); // ✅ Remove from queue
-          console.log(`Ride ${rideId} removed from queue.`);
-          return; // Exit loop once ride is removed
-        } else {
-          channel.nack(msg, false, true); // Put non-matching messages back
+      
+      // Get queue information to know how many messages to process
+      const queueInfo = await channel.assertQueue(queueName, { durable: true });
+      const messageCount = queueInfo.messageCount;
+      
+      if (messageCount === 0) {
+        console.log(`Queue ${queueName} is empty`);
+        return resolve(false);
+      }
+      
+      console.log(`Processing ${messageCount} messages in queue ${queueName}`);
+      
+      // Create a temporary queue to hold messages we want to keep
+      const tempQueueResult = await channel.assertQueue('', { exclusive: true });
+      const tempQueueName = tempQueueResult.queue;
+      
+      let foundTargetRide = false;
+      let processedCount = 0;
+      
+      // Process all messages from the original queue
+      for (let i = 0; i < messageCount; i++) {
+        const msg = await channel.get(queueName, { noAck: false });
+        if (!msg) break;
+        
+        try {
+          const rideRequest = JSON.parse(msg.content.toString());
+          
+          if (rideRequest._id === targetRideId) {
+            // This is our target ride - acknowledge it to remove from queue
+            channel.ack(msg);
+            foundTargetRide = true;
+            console.log(`✅ Ride ${targetRideId} found and removed from queue ${queueName}`);
+          } else {
+            // This is not our target - move to temporary queue
+            channel.sendToQueue(tempQueueName, msg.content);
+            channel.ack(msg);
+          }
+          
+          processedCount++;
+        } catch (error) {
+          console.error("Error processing message:", error);
+          // If we can't process it, just acknowledge and move on
+          channel.ack(msg);
         }
       }
+      
+      console.log(`Processed ${processedCount} messages, found target: ${foundTargetRide}`);
+      
+      // Now move all messages from temp queue back to original queue
+      let movedBackCount = 0;
+      while (true) {
+        const tempMsg = await channel.get(tempQueueName, { noAck: false });
+        if (!tempMsg) break;
+        
+        channel.sendToQueue(queueName, tempMsg.content);
+        channel.ack(tempMsg);
+        movedBackCount++;
+      }
+      
+      console.log(`Moved ${movedBackCount} messages back to original queue ${queueName}`);
+      
+      // Delete the temporary queue
+      await channel.deleteQueue(tempQueueName);
+      
+      resolve(foundTargetRide);
     } catch (error) {
-      console.error("Error removing ride from queue:", error);
+      console.error("Error in consumeRideFromQueue:", error);
+      reject(error);
     }
   });
 }
