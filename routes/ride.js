@@ -672,7 +672,7 @@ router.post("/cancel-ride", async (req, res) => {
 
       await channel.assertQueue(queueName, { durable: true });
 
-      const message = Buffer.from(JSON.stringify(rideRequest));
+      const message = Buffer.from(JSON.stringify(ride));
 
       // Ensure the message always stays in READY state, never moves to UNACKED
       channel.sendToQueue(queueName, message, {
