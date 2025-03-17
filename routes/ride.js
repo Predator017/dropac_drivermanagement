@@ -95,6 +95,7 @@ const router = express.Router();
 // Function to listen for ride requests
 router.post("/assign-ride", async (req, res) => {
   const { riderId, outStation, driverLocation } = req.body;
+  let consumerTag = null;
 
   const driver = await Driver.findById(riderId);
   driver.online = true;
@@ -110,63 +111,92 @@ router.post("/assign-ride", async (req, res) => {
 
     console.log(`Driver ${riderId} is now listening for ride requests...`);
 
-    let consumerTag;
+    const consumePromise = new Promise(async (resolve, reject) => {
+      try {
+        consumerTag = await channel.consume(
+          queueName,
+          async (msg) => {
+            if (!msg) return;
 
-    consumerTag = await channel.consume(
-      queueName,
-      async (msg) => {
-        if (!msg) return;
+            const rideRequest = JSON.parse(msg.content.toString());
 
-        const rideRequest = JSON.parse(msg.content.toString());
+            // Track ride request attempts per driver
+            if (!rideCache[riderId]) rideCache[riderId] = {};
+            rideCache[riderId][rideRequest._id] =
+              (rideCache[riderId][rideRequest._id] || 0) + 1;
 
-        // Track ride request attempts per driver
-        if (!rideCache[riderId]) rideCache[riderId] = {};
-        rideCache[riderId][rideRequest._id] =
-          (rideCache[riderId][rideRequest._id] || 0) + 1;
+            // If the same request is sent more than once, cancel it
+            if (rideCache[riderId][rideRequest._id] > 1) {
+              console.log(
+                `Driver ${riderId} received ride request too many times. Cancelling.`
+              );
 
-        // If the same request is sent more than once, cancel it
-        if (rideCache[riderId][rideRequest._id] > 1) {
-          console.log(
-            `Driver ${riderId} received ride request too many times. Cancelling.`
-          );
+              // ✅ Return message to queue immediately (prevents unacked state)
+              channel.reject(msg, true);
 
-          // ✅ Return message to queue immediately (prevents unacked state)
-          channel.reject(msg, true);
+              delete rideCache[riderId][rideRequest._id];
+              resolve();
+              return;
+            }
 
-          delete rideCache[riderId][rideRequest._id];
-          if (consumerTag?.consumerTag) {
-            await channel.cancel(consumerTag.consumerTag);
-          }
-          return;
-        }
+            // Calculate distance between driver and user
+            const distance = await calculateDistance(
+              [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
+              driverLocation.coordinates
+            );
 
-        // Calculate distance between driver and user
-        const distance = await calculateDistance(
-          [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
-          driverLocation.coordinates
+            console.log(`Distance to user: ${distance} km`);
+
+            if (distance <= 10) {
+              console.log(
+                `Driver ${riderId} is within 10 km. Sending the ride request.`
+              );
+              if (!res.headersSent) {
+                sentRideReq = true;
+                res.status(200).json({ message: "Ride request sent to driver", rideRequest });
+              }
+              resolve();
+            } else {
+              // Not within range, reject the message back to queue
+              channel.reject(msg, true);
+            }
+
+            // If we didn't send any ride request after processing, resolve anyway
+            if (!sentRideReq) {
+              resolve();
+            }
+          },
+          { noAck: false } // ❗ Keeps messages under manual acknowledgment control
         );
 
-        console.log(`Distance to user: ${distance} km`);
+        // Store consumer tag for later cleanup
+        consumerCache.set(riderId, consumerTag.consumerTag);
+      } catch (error) {
+        reject(error);
+      }
+    });
 
-        if (distance <= 10) {
-          console.log(
-            `Driver ${riderId} is within 10 km. Sending the ride request.`
-          );
-          if (!res.headersSent) {
-            sentRideReq = true;
-            res.status(200).json({ message: "Ride request sent to driver", rideRequest });
-          }
+    // Set a timeout to cancel the consumer if no matching ride is found
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        if (!sentRideReq && !res.headersSent) {
+          console.log(`No suitable ride found for driver ${riderId} within timeout.`);
+          res.status(404).json({ message: "No suitable ride found within the radius" });
         }
+        resolve();
+      }, 10000); // 10 seconds timeout
+    });
 
-        // ✅ Always return message to the queue if not processed
-        channel.reject(msg, true); // Moves the message back to "ready" queue
-      },
-      { noAck: false } // ❗ Keeps messages under manual acknowledgment control
-    );
+    // Wait for either a ride to be found or timeout
+    await Promise.race([consumePromise, timeoutPromise]);
 
-    if (sentRideReq) {
-      if (consumerTag?.consumerTag) {
+    // Always cancel the consumer after processing or timeout
+    if (consumerTag && consumerTag.consumerTag) {
+      try {
         await channel.cancel(consumerTag.consumerTag);
+        console.log(`Consumer for driver ${riderId} cancelled successfully.`);
+      } catch (cancelError) {
+        console.error(`Error cancelling consumer for driver ${riderId}:`, cancelError);
       }
     }
   } catch (error) {
@@ -174,8 +204,19 @@ router.post("/assign-ride", async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ message: "Ride Assignment failed", error });
     }
+    
+    // Even in case of error, try to cancel the consumer
+    if (consumerTag && consumerTag.consumerTag) {
+      try {
+        const channel = getChannel();
+        await channel.cancel(consumerTag.consumerTag);
+        console.log(`Consumer for driver ${riderId} cancelled after error.`);
+      } catch (cancelError) {
+        console.error(`Error cancelling consumer for driver ${riderId} after error:`, cancelError);
+      }
+    }
   }
-});
+}); 
 
 
 
@@ -320,24 +361,8 @@ router.post("/go-offline", async (req, res) => {
 
   await Driver.findByIdAndUpdate(riderId, { online: false });
   // Check if the consumer exists in the cache
-  if (!consumerCache.has(riderId)) {
-    return res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
-  }
-
-  try {
-    // Retrieve and cancel the consumer
-    const consumerTag = consumerCache.get(riderId);
-    await channel.cancel(consumerTag);
-
-    // Remove the consumer tag from the cache
-    consumerCache.del(riderId);
-
-    console.log(`Consumer for driver ${riderId} canceled successfully.`);
-    res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
-  } catch (error) {
-    console.error("Error canceling consumer:", error);
-    res.status(500).json({ message: "Failed to cancel the consumer.", error });
-  }
+  return res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
+  
 });
 
 
