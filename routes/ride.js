@@ -641,17 +641,53 @@ router.post("/cancel-ride", async (req, res) => {
     if(ride && ride.status == 'confirmed'){
 
       await CancelledRidesByDriver.findOneAndUpdate(
-        { driverId : riderId }, // Match the document by userId
-        { $addToSet: { rideIds: rideId } }, // Add rideId to the array (only if it doesn't already exist)
+        { driverId: riderId }, // Match the document by driverId
+        { 
+          $push: { 
+            rides: {
+              rideId: rideId,
+              reasonForCancellation: reasonForCancellation,
+              cancelledAt: moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss")
+            } 
+          } 
+        },
         { new: true, upsert: true } // Create a new document if it doesn't exist
       );
     
 
-      ride.status = 'cancelled';
-      ride.cancelledBy = 'driver';
-      ride.reasonForCancellation = reasonForCancellation;
-      ride.cancelledAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");;
-      ride.timeoutAt = null;
+
+      ride.status = 'pending';
+      ride.createdAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+      ride.timeoutAt = moment().tz("Asia/Kolkata").add(10, "minutes").format("YYYY-MM-DD HH:mm:ss");
+
+      ride.driverId = undefined;
+      ride.driverName = undefined;
+      ride.vehicleNumber = undefined;
+      ride.otp = undefined;
+      ride.confirmedAt = undefined;
+
+
+      const channel = getChannel();
+      const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
+
+      await channel.assertQueue(queueName, { durable: true });
+
+      const message = Buffer.from(JSON.stringify(rideRequest));
+
+      // Ensure the message always stays in READY state, never moves to UNACKED
+      channel.sendToQueue(queueName, message, {
+        expiration: (10 * 60 * 1000).toString(), // 10 minutes expiration
+        persistent: true, // Ensures message durability
+        mandatory: true, // Ensures the message is returned if it cannot be routed
+      }, (err, ok) => {
+        if (err) {
+          console.error("Message failed to send:", err);
+        } else {
+          console.log("Message successfully resent to queue after cancelled by driver:", queueName);
+        }
+      });
+
+
       await ride.save();
 
       // If the ride is still valid, return its status
