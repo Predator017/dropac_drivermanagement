@@ -511,6 +511,9 @@ router.put('/payment-status/:rideId', async (req, res) => {
         driver.walletBalance.part80 += part80;
         driver.walletBalance.part20 += part20;
 
+        driver.orders +=1;
+        
+
         await driver.save();
 
         res.status(200).json({ message: 'Payment status updated successfully', ride });

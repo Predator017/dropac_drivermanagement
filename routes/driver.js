@@ -148,7 +148,12 @@ router.get('/profile/:driverId', async (req, res) => {
     const driver = await Driver.findById(id);
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-    
+    const createdAt = moment(driver.createdAt);
+    // Calculate the number of months from the createdAt date to now
+    const months = moment().diff(createdAt, 'months');
+
+    driver.months = months;
+    driver.save();
     // Send response with driver and document statuses
     res.status(200).json({
       driver
