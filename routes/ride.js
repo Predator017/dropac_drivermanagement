@@ -119,10 +119,14 @@ router.post("/assign-ride", async (req, res) => {
 
             const rideRequest = JSON.parse(msg.content.toString());
 
-            // **Ensure ride requests are always in "ready" state**
+            // **Ensure the message is always in READY state**
             if (msg.fields.deliveryTag) {
-              console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
-              channel.nack(msg, false, true); // **Instantly requeue**
+              console.log(`Ride ${rideRequest._id} was unacked, requeuing.`);
+              try {
+                channel.nack(msg, false, true); // **Requeue instantly**
+              } catch (err) {
+                console.error(`Error in nack: ${err.message}`);
+              }
             }
 
             // Calculate distance between driver and user
@@ -145,7 +149,11 @@ router.post("/assign-ride", async (req, res) => {
               resolve();
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
-              channel.nack(msg, false, true); // **Requeue instantly**
+              try {
+                channel.nack(msg, false, true); // **Requeue instantly**
+              } catch (err) {
+                console.error(`Error in nack: ${err.message}`);
+              }
               resolve();
             }
 
@@ -153,7 +161,11 @@ router.post("/assign-ride", async (req, res) => {
             setTimeout(() => {
               if (!rideAssigned) {
                 console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
-                channel.nack(msg, false, true); // **Requeue instantly**
+                try {
+                  channel.nack(msg, false, true); // **Requeue instantly**
+                } catch (err) {
+                  console.error(`Error in nack: ${err.message}`);
+                }
               }
             }, 10000); // **Wait 10 seconds before requeuing**
 
