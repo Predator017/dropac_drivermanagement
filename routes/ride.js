@@ -119,17 +119,7 @@ router.post("/assign-ride", async (req, res) => {
 
             const rideRequest = JSON.parse(msg.content.toString());
 
-            // **Ensure the message is always in READY state**
-            if (msg.fields.deliveryTag) {
-              console.log(`Ride ${rideRequest._id} was unacked, requeuing.`);
-              try {
-                channel.nack(msg, false, true); // **Requeue instantly**
-              } catch (err) {
-                console.error(`Error in nack: ${err.message}`);
-              }
-            }
-
-            // Calculate distance between driver and user
+            // **Calculate distance between driver and user**
             const distance = await calculateDistance(
               [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
               driverLocation.coordinates
@@ -146,31 +136,35 @@ router.post("/assign-ride", async (req, res) => {
                 res.status(200).json({ message: "Ride request assigned", rideRequest });
               }
 
+              channel.ack(msg); // Acknowledge message
               resolve();
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
               try {
-                channel.nack(msg, false, true); // **Requeue instantly**
+                if (msg.fields.redelivered === false) {
+                  channel.nack(msg, false, true); // Requeue only if not redelivered
+                }
               } catch (err) {
                 console.error(`Error in nack: ${err.message}`);
               }
               resolve();
             }
 
-            // **If driver doesn't act within 10 sec, requeue the ride**
+            // **Requeue ride if driver doesn’t respond within 10 sec**
             setTimeout(() => {
               if (!rideAssigned) {
                 console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
                 try {
-                  channel.nack(msg, false, true); // **Requeue instantly**
+                  if (msg.fields.redelivered === false) {
+                    channel.nack(msg, false, true);
+                  }
                 } catch (err) {
-                  console.error(`Error in nack: ${err.message}`);
+                  console.error(`Error in nack (timeout): ${err.message}`);
                 }
               }
-            }, 10000); // **Wait 10 seconds before requeuing**
-
+            }, 10000);
           },
-          { noAck: false } // **Manual acknowledgment control**
+          { noAck: false }
         );
       } catch (error) {
         reject(error);
@@ -192,7 +186,7 @@ router.post("/assign-ride", async (req, res) => {
     await Promise.race([consumePromise, timeoutPromise]);
 
     // **Always cancel the consumer after processing**
-    if (consumerTag && consumerTag.consumerTag) {
+    if (consumerTag?.consumerTag) {
       try {
         await channel.cancel(consumerTag.consumerTag);
         console.log(`Consumer for driver ${riderId} cancelled successfully.`);
@@ -208,7 +202,7 @@ router.post("/assign-ride", async (req, res) => {
     }
 
     // **Even if an error occurs, cancel the consumer**
-    if (consumerTag && consumerTag.consumerTag) {
+    if (consumerTag?.consumerTag) {
       try {
         const channel = getChannel();
         await channel.cancel(consumerTag.consumerTag);
@@ -219,6 +213,7 @@ router.post("/assign-ride", async (req, res) => {
     }
   }
 });
+
 
 
 
