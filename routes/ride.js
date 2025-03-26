@@ -119,7 +119,13 @@ router.post("/assign-ride", async (req, res) => {
 
             const rideRequest = JSON.parse(msg.content.toString());
 
-            // **Calculate distance between driver and user**
+            // **Ensure ride requests are always in "ready" state**
+            if (msg.fields.deliveryTag) {
+              console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
+              channel.nack(msg, false, true); // **Instantly requeue**
+            }
+
+            // Calculate distance between driver and user
             const distance = await calculateDistance(
               [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
               driverLocation.coordinates
@@ -136,35 +142,23 @@ router.post("/assign-ride", async (req, res) => {
                 res.status(200).json({ message: "Ride request assigned", rideRequest });
               }
 
-              channel.ack(msg); // Acknowledge message
               resolve();
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
-              try {
-                if (msg.fields.redelivered === false) {
-                  channel.nack(msg, false, true); // Requeue only if not redelivered
-                }
-              } catch (err) {
-                console.error(`Error in nack: ${err.message}`);
-              }
+              channel.nack(msg, false, true); // **Requeue instantly**
               resolve();
             }
 
-            // **Requeue ride if driver doesn’t respond within 10 sec**
+            // **If driver doesn't act within 10 sec, requeue the ride**
             setTimeout(() => {
               if (!rideAssigned) {
                 console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
-                try {
-                  if (msg.fields.redelivered === false) {
-                    channel.nack(msg, false, true);
-                  }
-                } catch (err) {
-                  console.error(`Error in nack (timeout): ${err.message}`);
-                }
+                channel.nack(msg, false, true); // **Requeue instantly**
               }
-            }, 10000);
+            }, 10000); // **Wait 10 seconds before requeuing**
+
           },
-          { noAck: false }
+          { noAck: false } // **Manual acknowledgment control**
         );
       } catch (error) {
         reject(error);
@@ -186,7 +180,7 @@ router.post("/assign-ride", async (req, res) => {
     await Promise.race([consumePromise, timeoutPromise]);
 
     // **Always cancel the consumer after processing**
-    if (consumerTag?.consumerTag) {
+    if (consumerTag && consumerTag.consumerTag) {
       try {
         await channel.cancel(consumerTag.consumerTag);
         console.log(`Consumer for driver ${riderId} cancelled successfully.`);
@@ -202,7 +196,7 @@ router.post("/assign-ride", async (req, res) => {
     }
 
     // **Even if an error occurs, cancel the consumer**
-    if (consumerTag?.consumerTag) {
+    if (consumerTag && consumerTag.consumerTag) {
       try {
         const channel = getChannel();
         await channel.cancel(consumerTag.consumerTag);
@@ -220,12 +214,12 @@ router.post("/assign-ride", async (req, res) => {
 
 
 
-
 // Confirm ride function
 router.post("/confirm-ride", async (req, res) => {
   const { riderId, rideId, outStation } = req.body;
   try {
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
+
     // 🔹 Step 1: Check if ride is already confirmed
     const ride = await Ride.findById(rideId);
     if (!ride) {
@@ -234,15 +228,15 @@ router.post("/confirm-ride", async (req, res) => {
     if (ride.status === "confirmed") {
       // 🔹 Remove the ride from queue when another driver sees it's confirmed
       try {
-        await consumeRideFromQueue(queueName, rideId);
+        await removeRideFromQueue(queueName, rideId);
       } catch (error) {
-        console.error("Error consuming already confirmed ride from queue:", error);
+        console.error("Error removing already confirmed ride from queue:", error);
       }
       return res.status(400).json({ message: "Ride already confirmed by another driver." });
     }
 
-    if((ride.outStation === true && outStation === false) || (ride.outStation ===false && outStation === true)) {
-      return res.status(404).json({ message: "Please pass the outStation param correclty" });
+    if((ride.outStation === true && outStation === false) || (ride.outStation === false && outStation === true)) {
+      return res.status(404).json({ message: "Please pass the outStation param correctly" });
     }
 
     // 🔹 Step 2: Confirm the ride in DB first
@@ -256,12 +250,11 @@ router.post("/confirm-ride", async (req, res) => {
     ride.confirmedAt = moment().format("YYYY-MM-DD HH:mm:ss");
     await ride.save();
    
-    // 🔹 Step 3: Remove from queue by consuming the message
+    // 🔹 Step 3: Remove from queue
     try {
-      await consumeRideFromQueue(queueName, rideId);
+      await removeRideFromQueue(queueName, rideId);
     } catch (error) {
-      console.error("Error consuming ride from queue:", error);
-      // Continue with the response even if queue consumption fails
+      console.error("Error removing ride from queue:", error);
     }
     
     // 🔹 Step 4: Return response
@@ -272,82 +265,90 @@ router.post("/confirm-ride", async (req, res) => {
   }
 });
 
-// Completely revised function to properly consume and filter queue messages
-async function consumeRideFromQueue(queueName, targetRideId) {
+// 🔥 Optimized function to remove ride from queue
+async function removeRideFromQueue(queueName, targetRideId) {
   return new Promise(async (resolve, reject) => {
     try {
       const channel = getChannel();
-      
-      // Get queue information to know how many messages to process
-      const queueInfo = await channel.assertQueue(queueName, { durable: true });
-      const messageCount = queueInfo.messageCount;
-      
-      if (messageCount === 0) {
-        console.log(`Queue ${queueName} is empty`);
-        return resolve(false);
-      }
-      
-      console.log(`Processing ${messageCount} messages in queue ${queueName}`);
-      
-      // Create a temporary queue to hold messages we want to keep
-      const tempQueueResult = await channel.assertQueue('', { exclusive: true });
-      const tempQueueName = tempQueueResult.queue;
-      
+      await channel.assertQueue(queueName, { durable: true });
+
       let foundTargetRide = false;
       let processedCount = 0;
-      
-      // Process all messages from the original queue
-      for (let i = 0; i < messageCount; i++) {
-        const msg = await channel.get(queueName, { noAck: false });
-        if (!msg) break;
-        
+
+      console.log(`Checking queue ${queueName} for ride ${targetRideId}`);
+
+      while (true) {
+        const msg = await channel.get(queueName, { noAck: false }); // Fetch message without removing it
+
+        if (!msg) break; // No more messages in queue
+
         try {
           const rideRequest = JSON.parse(msg.content.toString());
-          
+
           if (rideRequest._id === targetRideId) {
-            // This is our target ride - acknowledge it to remove from queue
+            // ✅ Ride found - Remove it from the queue
             channel.ack(msg);
             foundTargetRide = true;
-            console.log(`✅ Ride ${targetRideId} found and removed from queue ${queueName}`);
+            console.log(`✅ Ride ${targetRideId} removed from queue ${queueName}`);
+            break; // Stop once we find and remove the ride
           } else {
-            // This is not our target - move to temporary queue
-            channel.sendToQueue(tempQueueName, msg.content);
-            channel.ack(msg);
+            // 🚀 Requeue the message instantly for other drivers
+            channel.nack(msg, false, true);
           }
-          
-          processedCount++;
         } catch (error) {
           console.error("Error processing message:", error);
-          // If we can't process it, just acknowledge and move on
-          channel.ack(msg);
+          channel.nack(msg, false, true); // Return the message if error occurs
         }
+
+        processedCount++;
       }
-      
-      console.log(`Processed ${processedCount} messages, found target: ${foundTargetRide}`);
-      
-      // Now move all messages from temp queue back to original queue
-      let movedBackCount = 0;
-      while (true) {
-        const tempMsg = await channel.get(tempQueueName, { noAck: false });
-        if (!tempMsg) break;
-        
-        channel.sendToQueue(queueName, tempMsg.content);
-        channel.ack(tempMsg);
-        movedBackCount++;
+
+      console.log(`Processed ${processedCount} messages. Found target ride: ${foundTargetRide}`);
+
+      if (!foundTargetRide) {
+        console.log(`Ride ${targetRideId} may be in unack state! Force rejecting.`);
+        await forceRejectUnacknowledgedRide(queueName, targetRideId);
       }
-      
-      console.log(`Moved ${movedBackCount} messages back to original queue ${queueName}`);
-      
-      // Delete the temporary queue
-      await channel.deleteQueue(tempQueueName);
-      
+
       resolve(foundTargetRide);
     } catch (error) {
-      console.error("Error in consumeRideFromQueue:", error);
+      console.error("Error in removeRideFromQueue:", error);
       reject(error);
     }
   });
 }
+
+// 🛑 Forcefully remove ride even if it's unacknowledged
+async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
+  try {
+    const channel = getChannel();
+    await channel.assertQueue(queueName, { durable: true });
+
+    channel.prefetch(1); // Ensure only one message is processed at a time
+
+    const consumerTag = await channel.consume(queueName, (msg) => {
+      if (msg) {
+        const rideRequest = JSON.parse(msg.content.toString());
+        if (rideRequest._id === targetRideId) {
+          // 🚀 Forcefully reject without requeuing
+          channel.reject(msg, false);
+          console.log(`Ride ${targetRideId} forcefully removed from queue.`);
+        } else {
+          channel.nack(msg, false, true); // Requeue other rides
+        }
+      }
+    });
+
+    // Cancel the consumer to free up resources
+    setTimeout(() => {
+      channel.cancel(consumerTag.consumerTag);
+    }, 5000);
+  } catch (error) {
+    console.error("Error in forceRejectUnacknowledgedRide:", error);
+  }
+}
+
+
 
 
 
