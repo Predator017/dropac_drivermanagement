@@ -96,20 +96,19 @@ const router = express.Router();
 router.post("/assign-ride", async (req, res) => {
   const { riderId, outStation, driverLocation } = req.body;
   let consumerTag = null;
-
-  const driver = await Driver.findById(riderId);
-  driver.online = true;
-  await driver.save();
+  let rideAssigned = false;
 
   try {
+    const driver = await Driver.findById(riderId);
+    driver.online = true;
+    await driver.save();
+
     const channel = getChannel();
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
-    let sentRideReq = false;
 
-    // Ensure queue exists
     await channel.assertQueue(queueName, { durable: true });
 
-    console.log(`Driver ${riderId} is now listening for ride requests...`);
+    console.log(`Driver ${riderId} is listening for ride requests...`);
 
     const consumePromise = new Promise(async (resolve, reject) => {
       try {
@@ -120,23 +119,10 @@ router.post("/assign-ride", async (req, res) => {
 
             const rideRequest = JSON.parse(msg.content.toString());
 
-            // Track ride request attempts per driver
-            if (!rideCache[riderId]) rideCache[riderId] = {};
-            rideCache[riderId][rideRequest._id] =
-              (rideCache[riderId][rideRequest._id] || 0) + 1;
-
-            // If the same request is sent more than once, cancel it
-            if (rideCache[riderId][rideRequest._id] > 1) {
-              console.log(
-                `Driver ${riderId} received ride request too many times. Cancelling.`
-              );
-
-              // ✅ Return message to queue immediately (prevents unacked state)
-              channel.reject(msg, true);
-
-              delete rideCache[riderId][rideRequest._id];
-              resolve();
-              return;
+            // **Ensure ride requests are always in "ready" state**
+            if (msg.fields.deliveryTag) {
+              console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
+              channel.nack(msg, false, true); // **Instantly requeue**
             }
 
             // Calculate distance between driver and user
@@ -145,52 +131,55 @@ router.post("/assign-ride", async (req, res) => {
               driverLocation.coordinates
             );
 
-            console.log(`Distance to user: ${distance} km`);
+            console.log(`Driver ${riderId} is ${distance} km away from user.`);
 
             if (distance <= 10) {
-              console.log(
-                `Driver ${riderId} is within 10 km. Sending the ride request.`
-              );
+              console.log(`Driver ${riderId} is within range. Assigning ride.`);
+
+              rideAssigned = true;
+
               if (!res.headersSent) {
-                sentRideReq = true;
-                res.status(200).json({ message: "Ride request sent to driver", rideRequest });
+                res.status(200).json({ message: "Ride request assigned", rideRequest });
               }
+
               resolve();
             } else {
-              // Not within range, reject the message back to queue
-              channel.reject(msg, true);
-            }
-
-            // If we didn't send any ride request after processing, resolve anyway
-            if (!sentRideReq) {
+              console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
+              channel.nack(msg, false, true); // **Requeue instantly**
               resolve();
             }
-          },
-          { noAck: false } // ❗ Keeps messages under manual acknowledgment control
-        );
 
-        // Store consumer tag for later cleanup
-        consumerCache.set(riderId, consumerTag.consumerTag);
+            // **If driver doesn't act within 10 sec, requeue the ride**
+            setTimeout(() => {
+              if (!rideAssigned) {
+                console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
+                channel.nack(msg, false, true); // **Requeue instantly**
+              }
+            }, 10000); // **Wait 10 seconds before requeuing**
+
+          },
+          { noAck: false } // **Manual acknowledgment control**
+        );
       } catch (error) {
         reject(error);
       }
     });
 
-    // Set a timeout to cancel the consumer if no matching ride is found
+    // **Timeout if no ride is assigned within 10 sec**
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {
-        if (!sentRideReq && !res.headersSent) {
+        if (!rideAssigned && !res.headersSent) {
           console.log(`No suitable ride found for driver ${riderId} within timeout.`);
           res.status(404).json({ message: "No suitable ride found within the radius" });
         }
         resolve();
-      }, 10000); // 10 seconds timeout
+      }, 10000);
     });
 
-    // Wait for either a ride to be found or timeout
+    // **Wait for a ride to be found or timeout**
     await Promise.race([consumePromise, timeoutPromise]);
 
-    // Always cancel the consumer after processing or timeout
+    // **Always cancel the consumer after processing**
     if (consumerTag && consumerTag.consumerTag) {
       try {
         await channel.cancel(consumerTag.consumerTag);
@@ -199,13 +188,14 @@ router.post("/assign-ride", async (req, res) => {
         console.error(`Error cancelling consumer for driver ${riderId}:`, cancelError);
       }
     }
+
   } catch (error) {
     console.error("Error in assign-ride:", error);
     if (!res.headersSent) {
       res.status(500).json({ message: "Ride Assignment failed", error });
     }
-    
-    // Even in case of error, try to cancel the consumer
+
+    // **Even if an error occurs, cancel the consumer**
     if (consumerTag && consumerTag.consumerTag) {
       try {
         const channel = getChannel();
@@ -216,7 +206,10 @@ router.post("/assign-ride", async (req, res) => {
       }
     }
   }
-}); 
+});
+
+
+
 
 
 
@@ -679,16 +672,10 @@ router.post("/cancel-ride", async (req, res) => {
 
       // Ensure the message always stays in READY state, never moves to UNACKED
       channel.sendToQueue(queueName, message, {
-        expiration: (10 * 60 * 1000).toString(), // 10 minutes expiration
-        persistent: true, // Ensures message durability
-        mandatory: true, // Ensures the message is returned if it cannot be routed
-      }, (err, ok) => {
-        if (err) {
-          console.error("Message failed to send:", err);
-        } else {
-          console.log("Message successfully resent to queue after cancelled by driver:", queueName);
-        }
-      });
+      expiration: (10 * 60 * 1000).toString(), // **Auto-expire in 10 minutes**
+      persistent: true, // **Ensures the message is durable**
+    });
+
 
 
       await ride.save();
