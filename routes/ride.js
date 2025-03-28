@@ -222,7 +222,7 @@ router.post("/confirm-ride", async (req, res) => {
 
     // 🔹 Step 1: Check if ride is already confirmed
     const ride = await Ride.findById(rideId);
-    if (!ride) {
+    if (!ride || ride.status == "cancelled") {
       return res.status(404).json({ message: "Ride not found." });
     }
     if (ride.status === "confirmed") {
