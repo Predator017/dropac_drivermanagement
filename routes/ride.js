@@ -122,7 +122,18 @@ router.post("/assign-ride", async (req, res) => {
             // **Ensure ride requests are always in "ready" state**
             if (msg.fields.deliveryTag) {
               console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
-              channel.nack(msg, false, true); // **Instantly requeue**
+                try{
+                if (channel.connection.stream.writable) {
+                  channel.nack(msg, false, true);
+              } else {
+                  console.log("Channel is already closed. Cannot nack message.");
+              }
+            }
+            catch (error) {
+              console.error("Error while nacking message:", error);
+              console.trace();
+          }
+            
             }
 
             // Calculate distance between driver and user
@@ -145,17 +156,37 @@ router.post("/assign-ride", async (req, res) => {
               resolve();
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
-              channel.nack(msg, false, true); // **Requeue instantly**
+                  try{
+                  if (channel.connection.stream.writable) {
+                    channel.nack(msg, false, true);
+                } else {
+                    console.log("Channel is already closed. Cannot nack message.");
+                } // **Requeue instantly**
+              }
+              catch (error) {
+                console.error("Error while nacking message:", error);
+                console.trace();
+            }
               resolve();
             }
 
             // **If driver doesn't act within 10 sec, requeue the ride**
             setTimeout(() => {
-              if (!rideAssigned) {
-                console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
-                channel.nack(msg, false, true); // **Requeue instantly**
+              if (!rideAssigned && msg.fields && msg.fields.deliveryTag) {
+                  console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
+                  try{
+                  if (channel.connection.stream.writable) {
+                    channel.nack(msg, false, true);
+                } else {
+                    console.log("Channel is already closed. Cannot nack message.");
+                }
               }
-            }, 10000); // **Wait 10 seconds before requeuing**
+              catch (error) {
+                console.error("Error while nacking message:", error);
+                console.trace();
+            }
+              }
+          }, 10000);   // **Wait 10 seconds before requeuing**
 
           },
           { noAck: false } // **Manual acknowledgment control**
@@ -182,7 +213,10 @@ router.post("/assign-ride", async (req, res) => {
     // **Always cancel the consumer after processing**
     if (consumerTag && consumerTag.consumerTag) {
       try {
-        await channel.cancel(consumerTag.consumerTag);
+        if (channel.connection.stream.writable) {
+          await channel.cancel(consumerTag.consumerTag);
+      }
+      
         console.log(`Consumer for driver ${riderId} cancelled successfully.`);
       } catch (cancelError) {
         console.error(`Error cancelling consumer for driver ${riderId}:`, cancelError);
@@ -199,10 +233,14 @@ router.post("/assign-ride", async (req, res) => {
     if (consumerTag && consumerTag.consumerTag) {
       try {
         const channel = getChannel();
-        await channel.cancel(consumerTag.consumerTag);
+        if (channel.connection.stream.writable) {
+          await channel.cancel(consumerTag.consumerTag);
+      }
+      
         console.log(`Consumer for driver ${riderId} cancelled after error.`);
       } catch (cancelError) {
         console.error(`Error cancelling consumer for driver ${riderId} after error:`, cancelError);
+        console.trace();
       }
     }
   }
@@ -293,11 +331,31 @@ async function removeRideFromQueue(queueName, targetRideId) {
             break; // Stop once we find and remove the ride
           } else {
             // 🚀 Requeue the message instantly for other drivers
-            channel.nack(msg, false, true);
+            try{
+            if (channel.connection.stream.writable) {
+              channel.nack(msg, false, true);
+          } else {
+              console.log("Channel is already closed. Cannot nack message.");
+          }
+        }
+        catch (error) {
+          console.error("Error while nacking message:", error);
+          console.trace();
+      }
           }
         } catch (error) {
           console.error("Error processing message:", error);
-          channel.nack(msg, false, true); // Return the message if error occurs
+          try{
+          if (channel.connection.stream.writable) {
+            channel.nack(msg, false, true);
+        } else {
+            console.log("Channel is already closed. Cannot nack message.");
+        } // Return the message if error occurs
+      }
+      catch (error) {
+        console.error("Error while nacking message:", error);
+        console.trace();
+    }
         }
 
         processedCount++;
@@ -334,14 +392,38 @@ async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
           channel.reject(msg, false);
           console.log(`Ride ${targetRideId} forcefully removed from queue.`);
         } else {
-          channel.nack(msg, false, true); // Requeue other rides
+          try{
+          if (channel.connection.stream.writable) {
+            channel.nack(msg, false, true);
+        } else {
+            console.log("Channel is already closed. Cannot nack message.");
+        } // Requeue other rides
+      }
+      catch (error) {
+        console.error("Error while nacking message:", error);
+        console.trace();
+    }
         }
       }
     });
 
     // Cancel the consumer to free up resources
     setTimeout(() => {
-      channel.cancel(consumerTag.consumerTag);
+      if (channel.connection.stream.writable) {
+        
+        try {
+          const channel = getChannel();
+          if (channel.connection.stream.writable) {
+            channel.cancel(consumerTag.consumerTag);
+        }
+        
+          console.log(`Consumer for driver ${riderId} cancelled after error.`);
+        } catch (cancelError) {
+          console.error(`Error cancelling consumer for driver ${riderId} after error:`, cancelError);
+          console.trace();
+        }
+    }
+    
     }, 5000);
   } catch (error) {
     console.error("Error in forceRejectUnacknowledgedRide:", error);
