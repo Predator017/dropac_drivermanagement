@@ -35,11 +35,11 @@ router.get("/nearby-drivers", async (req, res) => {
       if (!bodyDetails || !location || !location.coordinates) return;
 
 
-      if (bodyDetails.startsWith("7 feet")) {
+      if (bodyDetails.startsWith("7 Feet")) {
         bodyDetails = "Tata Ace";
-      } else if (bodyDetails.startsWith("8 feet")) {
+      } else if (bodyDetails.startsWith("8 Feet")) {
         bodyDetails = "8ft Truck";
-      } else if (bodyDetails.startsWith("9 feet")) {
+      } else if (bodyDetails.startsWith("9 Feet")) {
         bodyDetails = "9ft Truck";
       }
 
