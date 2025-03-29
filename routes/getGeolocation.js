@@ -25,17 +25,27 @@ router.get("/nearby-drivers", async (req, res) => {
       return res.status(400).json({ message: "Latitude and Longitude are required" });
     }
 
-    // Fetch all online drivers grouped by vehicleType
+    // Fetch all online drivers grouped by bodyDetails
     const drivers = await Driver.find({ online: true });
 
     // Group drivers by vehicle type
     const vehicleGroups = {};
     drivers.forEach(driver => {
-      const { vehicleType, location } = driver;
-      if (!vehicleType || !location || !location.coordinates) return;
+      const { bodyDetails, location } = driver;
+      if (!bodyDetails || !location || !location.coordinates) return;
 
-      if (!vehicleGroups[vehicleType]) vehicleGroups[vehicleType] = [];
-      vehicleGroups[vehicleType].push({
+
+      if (bodyDetails.startsWith("7 feet")) {
+        bodyDetails = "Tata Ace";
+      } else if (bodyDetails.startsWith("8 feet")) {
+        bodyDetails = "8ft Truck";
+      } else if (bodyDetails.startsWith("9 feet")) {
+        bodyDetails = "9ft Truck";
+      }
+
+
+      if (!vehicleGroups[bodyDetails]) vehicleGroups[bodyDetails] = [];
+      vehicleGroups[bodyDetails].push({
         driverId: driver._id,
         lat: location.coordinates[0], // [longitude, latitude]
         lng: location.coordinates[1]
@@ -52,7 +62,7 @@ router.get("/nearby-drivers", async (req, res) => {
     const fastestDrivers = [];
 
     // Fetch travel duration for each vehicle type
-    for (const [vehicleType, drivers] of Object.entries(vehicleGroups)) {
+    for (const [bodyDetails, drivers] of Object.entries(vehicleGroups)) {
       let shortestDuration = Infinity;
       let bestDriver = null;
 
@@ -70,13 +80,13 @@ router.get("/nearby-drivers", async (req, res) => {
             if (duration < shortestDuration) {
               shortestDuration = duration;
               bestDriver = { 
-                vehicleType, 
+                bodyDetails, 
                 duration: `${Math.round(duration / 60)} mins` // Convert seconds to minutes
               };
             }
           }
         } catch (error) {
-          console.error(`Error fetching route for ${vehicleType}:`, error);
+          console.error(`Error fetching route for ${bodyDetails}:`, error);
         }
       }
 
