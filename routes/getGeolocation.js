@@ -54,7 +54,7 @@ router.get("/nearby-drivers", async (req, res) => {
       });
     });
 
-    console.log(vehicleGroups);
+    //console.log(vehicleGroups);
 
     const apiKey = process.env.MAPS_API;
     if (!apiKey) {
