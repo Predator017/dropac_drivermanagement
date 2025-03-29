@@ -31,18 +31,20 @@ router.get("/nearby-drivers", async (req, res) => {
     // Group drivers by vehicle type
     const vehicleGroups = {};
     drivers.forEach(driver => {
-      const { bodyDetails, location } = driver;
+      let { bodyDetails, location } = driver;
       if (!bodyDetails || !location || !location.coordinates) return;
 
 
-      if (bodyDetails.startsWith("7 Feet")) {
+      const normalizedBodyDetails = bodyDetails.toLowerCase().trim();
+
+      // Map bodyDetails to specific vehicle types
+      if (normalizedBodyDetails.startsWith("7 feet")) {
         bodyDetails = "Tata Ace";
-      } else if (bodyDetails.startsWith("8 Feet")) {
+      } else if (normalizedBodyDetails.startsWith("8 feet")) {
         bodyDetails = "8ft Truck";
-      } else if (bodyDetails.startsWith("9 Feet")) {
+      } else if (normalizedBodyDetails.startsWith("9 feet")) {
         bodyDetails = "9ft Truck";
       }
-
 
       if (!vehicleGroups[bodyDetails]) vehicleGroups[bodyDetails] = [];
       vehicleGroups[bodyDetails].push({
