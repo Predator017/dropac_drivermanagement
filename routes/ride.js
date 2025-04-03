@@ -758,7 +758,7 @@ router.post("/cancel-ride", async (req, res) => {
       const message = Buffer.from(JSON.stringify(ride));
 
       // Ensure the message always stays in READY state, never moves to UNACKED
-      channel.sendToQueue(queueName, message, {
+      await channel.sendToQueue(queueName, message, {
       expiration: (10 * 60 * 1000).toString(), // **Auto-expire in 10 minutes**
       persistent: true, // **Ensures the message is durable**
     });
@@ -768,7 +768,7 @@ router.post("/cancel-ride", async (req, res) => {
       await ride.save();
 
       // If the ride is still valid, return its status
-      res.status(200).json({ message: "Ride request cancelled successfully", ride });
+      return res.status(200).json({ message: "Ride request cancelled successfully", ride });
     }
 
     // Requeue the ride request in RabbitMQ for other drivers
@@ -796,10 +796,10 @@ router.post("/cancel-ride", async (req, res) => {
     
     addRideToCache(rideCache, riderId, rideId);
 
-    res.status(200).json({ message: "Ride cancelled, requeued for other drivers", ride });
+    return res.status(200).json({ message: "Ride cancelled, requeued for other drivers", ride });
     }
   } catch (error) {
-    res.status(500).json({ message: "Error cancelling ride", error });
+    return res.status(500).json({ message: "Error cancelling ride", error });
   }
 });
 
