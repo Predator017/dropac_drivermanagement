@@ -138,7 +138,20 @@ router.post("/assign-ride", async (req, res) => {
 
             // check the vehicle type of driver and ride is same or not
 
-            if(rideRequest.vehicleType == driver.vehicleType){
+            if ((rideRequest.vehicleType === "Bike" && 
+              (driver.bodyDetails === "Bike" || driver.bodyDetails === "Scooter")) ||
+             
+             (rideRequest.vehicleType === "3-Wheeler" && 
+              (driver.bodyDetails === "Electric 3 Wheeler" || driver.bodyDetails === "3 Wheeler")) ||
+             
+              (rideRequest.vehicleType === "Tata Ace" && 
+                driver.bodyDetails.startsWith("7 Feet")) ||
+               
+               (rideRequest.vehicleType === "8ft Truck" && 
+                driver.bodyDetails.startsWith("8 Feet")) ||
+               
+               (rideRequest.vehicleType === "9ft Truck" && 
+                driver.bodyDetails.startsWith("9 Feet"))){
 
             // Calculate distance between driver and user
             const distance = await calculateDistance(
