@@ -136,6 +136,10 @@ router.post("/assign-ride", async (req, res) => {
             
             }
 
+            // check the vehicle type of driver and ride is same or not
+
+            if(rideRequest.vehicleType == driver.vehicleType){
+
             // Calculate distance between driver and user
             const distance = await calculateDistance(
               [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
@@ -185,6 +189,7 @@ router.post("/assign-ride", async (req, res) => {
               }
           }, 10000);   // **Wait 10 seconds before requeuing**
 
+        }
           },
           { noAck: false } // **Manual acknowledgment control**
         );
