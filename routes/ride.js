@@ -157,11 +157,8 @@ router.post("/assign-ride", async (req, res) => {
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
                   try{
-                  if (channel.connection.stream.writable) {
                     channel.nack(msg, false, true);
-                } else {
-                    console.log("Channel is already closed. Cannot nack message.");
-                } // **Requeue instantly**
+                // **Requeue instantly**
               }
               catch (error) {
                 console.error("Error while nacking message:", error);
@@ -217,9 +214,9 @@ router.post("/assign-ride", async (req, res) => {
           await channel.cancel(consumerTag.consumerTag);
       }
       
-        console.log(`Consumer for driver ${riderId} cancelled successfully.`);
+        console.log(`Consumer for driver cancelled successfully.`);
       } catch (cancelError) {
-        console.error(`Error cancelling consumer for driver ${riderId}:`, cancelError);
+        console.error(`Error cancelling consumer for driver :`, cancelError);
       }
     }
 
@@ -237,9 +234,9 @@ router.post("/assign-ride", async (req, res) => {
           await channel.cancel(consumerTag.consumerTag);
       }
       
-        console.log(`Consumer for driver ${riderId} cancelled after error.`);
+        console.log(`Consumer for driver cancelled after error.`);
       } catch (cancelError) {
-        console.error(`Error cancelling consumer for driver ${riderId} after error:`, cancelError);
+        console.error(`Error cancelling consumer for driver after error:`, cancelError);
         console.trace();
       }
     }
@@ -303,7 +300,7 @@ router.post("/confirm-ride", async (req, res) => {
   }
 });
 
-// 🔥 Optimized function to remove ride from queue
+// Optimized function to remove ride from queue
 async function removeRideFromQueue(queueName, targetRideId) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -376,7 +373,7 @@ async function removeRideFromQueue(queueName, targetRideId) {
   });
 }
 
-// 🛑 Forcefully remove ride even if it's unacknowledged
+// Forcefully remove ride even if it's unacknowledged
 async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
   try {
     const channel = getChannel();
@@ -417,9 +414,9 @@ async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
             channel.cancel(consumerTag.consumerTag);
         }
         
-          console.log(`Consumer for driver ${riderId} cancelled after error.`);
+          console.log(`Consumer for driver  cancelled after error.`);
         } catch (cancelError) {
-          console.error(`Error cancelling consumer for driver ${riderId} after error:`, cancelError);
+          console.error(`Error cancelling consumer for driver after error:`, cancelError);
           console.trace();
         }
     }
