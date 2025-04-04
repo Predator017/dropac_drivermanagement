@@ -189,7 +189,17 @@ router.post("/assign-ride", async (req, res) => {
               if (!rideAssigned && msg.fields && msg.fields.deliveryTag) {
                   console.log(`Driver ${riderId} did not respond. Returning ride request to queue.`);
                   try{
-                  if (channel.connection.stream.writable) {
+                    if (
+                      channel &&
+                      channel.connection &&
+                      channel.connection.stream.writable &&
+                      !channel.connection.closing &&
+                      channel._channel &&
+                      channel._channel.connection &&
+                      !channel._channel.connection.closing &&
+                      typeof msg.fields.deliveryTag === "number"
+                    )
+                     {
                     channel.nack(msg, false, true);
                 } else {
                     console.log("Channel is already closed. Cannot nack message.");
