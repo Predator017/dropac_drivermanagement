@@ -207,9 +207,10 @@ router.post('/update-driver', async (req, res) => {
 
     // Update location if provided
     if (location && location.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+      const [lat, lng] = location.coordinates; // Extract lat, lng
       driver.location = {
         type: 'Point',
-        coordinates: location.coordinates
+        coordinates: [lng, lat]
       };
     }
 

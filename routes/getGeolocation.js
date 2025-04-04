@@ -49,8 +49,8 @@ router.get("/nearby-drivers", async (req, res) => {
       if (!vehicleGroups[bodyDetails]) vehicleGroups[bodyDetails] = [];
       vehicleGroups[bodyDetails].push({
         driverId: driver._id,
-        lat: location.coordinates[0], // [longitude, latitude]
-        lng: location.coordinates[1]
+        lat: location.coordinates[1], // [longitude, latitude]
+        lng: location.coordinates[0]
       });
     });
 
