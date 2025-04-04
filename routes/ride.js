@@ -104,6 +104,8 @@ router.post("/assign-ride", async (req, res) => {
     await driver.save();
 
     const channel = getChannel();
+
+    
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
 
     await channel.assertQueue(queueName, { durable: true });
@@ -120,8 +122,8 @@ router.post("/assign-ride", async (req, res) => {
             const rideRequest = JSON.parse(msg.content.toString());
 
             // **Ensure ride requests are always in "ready" state**
-            if (msg.fields.deliveryTag) {
-              console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
+            if (msg && msg.fields && typeof msg.fields.deliveryTag !== "undefined") {
+                console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
                 try{
                 if (channel.connection.stream.writable) {
                   channel.nack(msg, false, true);
