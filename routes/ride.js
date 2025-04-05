@@ -123,11 +123,24 @@ router.post("/assign-ride", async (req, res) => {
             if (msg.fields.deliveryTag) {
               console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
                 try{
-                if (channel.connection.stream.writable) {
-                  channel.nack(msg, false, true);
+                  if (
+                    channel &&
+                    channel.connection &&
+                    channel.connection.stream.writable &&
+                    !channel.connection.closing &&
+                    channel._channel &&
+                    channel._channel.connection &&
+                    !channel._channel.connection.closing &&
+                    typeof msg.fields.deliveryTag === "number"
+                  ) {
+                  await channel.nack(msg, false, true);
               } else {
-                  console.log("Channel is already closed. Cannot nack message.");
-              }
+                  const opened_channel = getChannel();
+                  await opened_channel.assertQueue(queueName, { durable: true });
+                  await opened_channel.nack(msg, false, true);
+
+                  console.log("Channel is already closed. Opened new channel to put ride back");
+                }
             }
             catch (error) {
               console.error("Error while nacking message:", error);
@@ -161,7 +174,7 @@ router.post("/assign-ride", async (req, res) => {
 
             console.log(`Driver ${riderId} is ${distance} km away from user.`);
 
-            if (distance <= 10) {
+            if (distance <= 10 /* && !isRideInCache(rideCache, riderId, rideRequest._id) */) {
               console.log(`Driver ${riderId} is within range. Assigning ride.`);
 
               rideAssigned = true;
@@ -174,10 +187,25 @@ router.post("/assign-ride", async (req, res) => {
             } else {
               console.log(`Driver ${riderId} is too far. Requeuing ride request.`);
                   try{
-                    channel.nack(msg, false, true);
-                // **Requeue instantly**
+                    if (
+                      channel &&
+                      channel.connection &&
+                      channel.connection.stream.writable &&
+                      !channel.connection.closing &&
+                      channel._channel &&
+                      channel._channel.connection &&
+                      !channel._channel.connection.closing 
+                    )
+                     {
+                    await channel.nack(msg, false, true);
+                }
               }
               catch (error) {
+                const opened_channel = getChannel();
+                  await opened_channel.assertQueue(queueName, { durable: true });
+                  await opened_channel.nack(msg, false, true);
+
+                  console.log("Channel is already closed. Opened new channel to put ride back");
                 console.error("Error while nacking message:", error);
                 console.trace();
             }
@@ -196,13 +224,12 @@ router.post("/assign-ride", async (req, res) => {
                       !channel.connection.closing &&
                       channel._channel &&
                       channel._channel.connection &&
-                      !channel._channel.connection.closing &&
-                      typeof msg.fields.deliveryTag === "number"
+                      !channel._channel.connection.closing 
                     )
                      {
                     channel.nack(msg, false, true);
                 } else {
-                    console.log("Channel is already closed. Cannot nack message.");
+                  console.log("Channel is already closed.");
                 }
               }
               catch (error) {
@@ -357,10 +384,22 @@ async function removeRideFromQueue(queueName, targetRideId) {
           } else {
             // 🚀 Requeue the message instantly for other drivers
             try{
-            if (channel.connection.stream.writable) {
-              channel.nack(msg, false, true);
+              if (
+                channel &&
+                channel.connection &&
+                channel.connection.stream.writable &&
+                !channel.connection.closing &&
+                channel._channel &&
+                channel._channel.connection &&
+                !channel._channel.connection.closing 
+              ) {
+             await channel.nack(msg, false, true);
           } else {
-              console.log("Channel is already closed. Cannot nack message.");
+            const opened_channel = getChannel();
+            await opened_channel.assertQueue(queueName, { durable: true });
+            await opened_channel.nack(msg, false, true);
+
+            console.log("Channel is already closed. Opened new channel to put ride back");
           }
         }
         catch (error) {
@@ -371,10 +410,22 @@ async function removeRideFromQueue(queueName, targetRideId) {
         } catch (error) {
           console.error("Error processing message:", error);
           try{
-          if (channel.connection.stream.writable) {
-            channel.nack(msg, false, true);
+            if (
+              channel &&
+              channel.connection &&
+              channel.connection.stream.writable &&
+              !channel.connection.closing &&
+              channel._channel &&
+              channel._channel.connection &&
+              !channel._channel.connection.closing 
+            ) {
+           await channel.nack(msg, false, true);
         } else {
-            console.log("Channel is already closed. Cannot nack message.");
+          const opened_channel = getChannel();
+          await opened_channel.assertQueue(queueName, { durable: true });
+          await opened_channel.nack(msg, false, true);
+
+          console.log("Channel is already closed. Opened new channel to put ride back");
         } // Return the message if error occurs
       }
       catch (error) {
@@ -418,10 +469,19 @@ async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
           console.log(`Ride ${targetRideId} forcefully removed from queue.`);
         } else {
           try{
-          if (channel.connection.stream.writable) {
-            channel.nack(msg, false, true);
+            if (
+              channel &&
+              channel.connection &&
+              channel.connection.stream.writable &&
+              !channel.connection.closing &&
+              channel._channel &&
+              channel._channel.connection &&
+              !channel._channel.connection.closing 
+            ) {
+           channel.nack(msg, false, true);
         } else {
-            console.log("Channel is already closed. Cannot nack message.");
+
+          console.log("Channel is already closed. ");
         } // Requeue other rides
       }
       catch (error) {
@@ -434,11 +494,27 @@ async function forceRejectUnacknowledgedRide(queueName, targetRideId) {
 
     // Cancel the consumer to free up resources
     setTimeout(() => {
-      if (channel.connection.stream.writable) {
+      if (
+        channel &&
+        channel.connection &&
+        channel.connection.stream.writable &&
+        !channel.connection.closing &&
+        channel._channel &&
+        channel._channel.connection &&
+        !channel._channel.connection.closing 
+      )  {
         
         try {
           const channel = getChannel();
-          if (channel.connection.stream.writable) {
+          if (
+            channel &&
+            channel.connection &&
+            channel.connection.stream.writable &&
+            !channel.connection.closing &&
+            channel._channel &&
+            channel._channel.connection &&
+            !channel._channel.connection.closing 
+          )  {
             channel.cancel(consumerTag.consumerTag);
         }
         
