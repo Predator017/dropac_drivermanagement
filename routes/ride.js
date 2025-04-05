@@ -47,7 +47,7 @@ async function calculateDistance(userCoordinates, driverCoordinates) {
   const [driverLat, driverLon] = driverCoordinates;
 
   const apiKey = process.env.MAPS_API; // Ensure your API key is set correctly
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${userLat},${userLon}&destination=${driverLat},${driverLon}&mode=driving&sensor=false&key=${apiKey}`;
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${userLat},${userLon}&destination=${driverLat},${driverLon}&mode=driving&units=metric&sensor=false&key=${apiKey}`;
 
   try {
     // Fetch data from Google Maps API (await fetch)
@@ -55,10 +55,15 @@ async function calculateDistance(userCoordinates, driverCoordinates) {
     const data = await response.json(); // Wait for JSON parsing
 
     if (data.routes?.[0]?.legs?.[0]) {
-      const distanceText = data.routes[0].legs[0].distance.text; // Distance as a string (e.g., "12.5 km")
-      console.log(distanceText);
-      const distanceInKm = parseFloat(distanceText.replace(" km", "")); // Convert to number
-      return distanceInKm;
+      const distanceInMeters = data.routes[0].legs[0].distance.value;  // This is in meters
+    
+    // Convert distance to kilometers
+    const distanceInKilometers = distanceInMeters / 1000;  // Convert meters to kilometers
+
+    // Optionally, you can format the result to a specific decimal point for readability
+    const formattedDistance = distanceInKilometers.toFixed(3);  
+      console.log(formattedDistance);
+      return formattedDistance;
     } else {
       throw new Error("No route found");
     }
@@ -115,12 +120,14 @@ router.post("/assign-ride", async (req, res) => {
         consumerTag = await channel.consume(
           queueName,
           async (msg) => {
+            
             if (!msg) return;
 
             const rideRequest = JSON.parse(msg.content.toString());
 
             // **Ensure ride requests are always in "ready" state**
             if (msg.fields.deliveryTag) {
+              
               console.log(`Ride ${rideRequest._id} was unacked, returning it to queue.`);
                 try{
                   if (
@@ -150,6 +157,7 @@ router.post("/assign-ride", async (req, res) => {
             }
 
             // check the vehicle type of driver and ride is same or not
+
 
             if ((rideRequest.vehicleType === "Bike" && 
               (driver.bodyDetails === "Bike" || driver.bodyDetails === "Scooter")) ||
@@ -182,6 +190,8 @@ router.post("/assign-ride", async (req, res) => {
               if (!res.headersSent) {
                 res.status(200).json({ message: "Ride request assigned", rideRequest });
               }
+
+             
 
               resolve();
             } else {
@@ -334,7 +344,6 @@ router.post("/confirm-ride", async (req, res) => {
     ride.status = "confirmed";
     ride.driverId = riderId;
     ride.driverName = driver.name;
-    ride.vehicleType = driver.vehicleType;
     ride.vehicleNumber = driver.vehicleNumber;
     ride.otp = Math.floor(1000 + Math.random() * 9000);
     ride.confirmedAt = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -842,22 +851,14 @@ router.post("/cancel-ride", async (req, res) => {
       );
     
 
-
-      
-
-
       const channel = getChannel();
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
       await channel.assertQueue(queueName, { durable: true });
+      
 
-      const message = Buffer.from(JSON.stringify(ride));
 
-      // Ensure the message always stays in READY state, never moves to UNACKED
-      await channel.sendToQueue(queueName, message, {
-      expiration: (10 * 60 * 1000).toString(), // **Auto-expire in 10 minutes**
-      persistent: true, // **Ensures the message is durable**
-    });
+      
 
 
       ride.status = 'pending';
@@ -872,6 +873,16 @@ router.post("/cancel-ride", async (req, res) => {
 
 
       await ride.save();
+
+      
+
+      const message = Buffer.from(JSON.stringify(ride));
+
+      // Ensure the message always stays in READY state, never moves to UNACKED
+      await channel.sendToQueue(queueName, message, {
+      expiration: (10 * 60 * 1000).toString(), // **Auto-expire in 10 minutes**
+      persistent: true, // **Ensures the message is durable**
+    });
 
       // If the ride is still valid, return its status
       return res.status(200).json({ message: "Ride request cancelled successfully", ride });
