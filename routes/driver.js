@@ -154,9 +154,23 @@ router.get('/profile/:driverId', async (req, res) => {
 
     driver.months = months;
     driver.save();
+
+    const driverObj = driver.toObject();
+    if (
+      driverObj.location &&
+      driverObj.location.type === 'Point' &&
+      Array.isArray(driverObj.location.coordinates) &&
+      driverObj.location.coordinates.length === 2
+    ) {
+      driverObj.location.coordinates = [
+        driverObj.location.coordinates[1], // lat
+        driverObj.location.coordinates[0]  // lng
+      ];
+    }
+
     // Send response with driver and document statuses
     res.status(200).json({
-      driver
+      driver: driverObj
     });
   } catch (error) {
     res.status(500).json({
