@@ -843,15 +843,7 @@ router.post("/cancel-ride", async (req, res) => {
     
 
 
-      ride.status = 'pending';
-      ride.createdAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
-      ride.timeoutAt = moment().tz("Asia/Kolkata").add(10, "minutes").format("YYYY-MM-DD HH:mm:ss");
-
-      ride.driverId = undefined;
-      ride.driverName = undefined;
-      ride.vehicleNumber = undefined;
-      ride.otp = undefined;
-      ride.confirmedAt = undefined;
+      
 
 
       const channel = getChannel();
@@ -867,6 +859,16 @@ router.post("/cancel-ride", async (req, res) => {
       persistent: true, // **Ensures the message is durable**
     });
 
+
+      ride.status = 'pending';
+      ride.createdAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+      ride.timeoutAt = moment().tz("Asia/Kolkata").add(10, "minutes").format("YYYY-MM-DD HH:mm:ss");
+
+      ride.driverId = undefined;
+      ride.driverName = undefined;
+      ride.vehicleNumber = undefined;
+      ride.otp = undefined;
+      ride.confirmedAt = undefined;
 
 
       await ride.save();
