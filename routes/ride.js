@@ -872,6 +872,9 @@ router.post("/cancel-ride", async (req, res) => {
       ride.otp = undefined;
       ride.confirmedAt = undefined;
 
+      await ride.save();
+
+      
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
       await channel.assertQueue(queueName, { durable: true });
@@ -879,14 +882,26 @@ router.post("/cancel-ride", async (req, res) => {
       const rideObject = ride.toObject ? ride.toObject() : ride;
       const message = Buffer.from(JSON.stringify(rideObject));
 
-      const success = channel.sendToQueue(queueName, message, {
-        expiration: (10 * 60 * 1000).toString(),
-        persistent: true,
-      });
+      try {
+        const success = channel.sendToQueue(queueName, message, {
+          expiration: (10 * 60 * 1000).toString(),
+          persistent: true,
+        });
+      
+        if (!success) {
+          console.error("❌ Failed to buffer message into queue:", queueName);
+          return res.status(500).json({ message: "Failed to push ride back to queue after cancellation" });
+        }
+      
+        await channel.waitForConfirms(); // 💡 Ensure publish is acknowledged
+        console.log("✅ Ride successfully pushed to queue:", queueName);
+      } catch (err) {
+        console.error("❌ Error confirming message delivery:", err);
+        return res.status(500).json({ message: "Failed to confirm message delivery" });
+      }
+      
+      
 
-      console.log("Message push to queue success:", success);
-
-      await ride.save();
 
       if (!success) {
         console.log({ message: "Ride saved but failed to requeue" });
