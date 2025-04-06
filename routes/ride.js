@@ -827,7 +827,42 @@ router.post("/rate-user", async(req, res) =>{
 });
 
 
+function sanitizeRideForQueue(ride) {
+  const base = {
+    _id: ride._id,
+    userId: ride.userId,
+    vehicleType: ride.vehicleType,
+    pickupDetails: ride.pickupDetails,
+    dropDetails1: ride.dropDetails1,
+    outStation: ride.outStation,
+    currentDropNumber: ride.currentDropNumber,
+    fare: ride.fare,
+    distance: ride.distance,
+    duration: ride.duration,
+    status: "pending",
+    createdAt: ride.createdAt,
+    timeoutAt: ride.timeoutAt,
+    __v: ride.__v // Add this if frontend expects it
+  };
 
+  if (
+    ride.dropDetails2 &&
+    typeof ride.dropDetails2 === "object" &&
+    Object.keys(ride.dropDetails2).length > 0
+  ) {
+    base.dropDetails2 = ride.dropDetails2;
+  }
+
+  if (
+    ride.dropDetails3 &&
+    typeof ride.dropDetails3 === "object" &&
+    Object.keys(ride.dropDetails3).length > 0
+  ) {
+    base.dropDetails3 = ride.dropDetails3;
+  }
+
+  return base;
+}
 
 
 // Handle ride cancellation
@@ -874,8 +909,9 @@ router.post("/cancel-ride", async (req, res) => {
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
       // Ensure it's a plain object and doesn't contain Mongoose stuff
-      const plainRide = ride.toObject();
-      
+      const plainRide = sanitizeRideForQueue(ride);
+
+
       try {
         await channel.assertQueue(queueName, { durable: true });
 
