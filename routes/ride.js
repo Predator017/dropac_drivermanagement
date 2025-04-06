@@ -852,11 +852,12 @@ router.post("/cancel-ride", async (req, res) => {
     
 
       const channel = getChannel();
-      const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
-
-      await channel.assertQueue(queueName, { durable: true });
       
-
+      
+      if (!channel) {
+        console.error("RabbitMQ channel is not available");
+      
+      }
 
       
 
@@ -871,18 +872,25 @@ router.post("/cancel-ride", async (req, res) => {
       ride.otp = undefined;
       ride.confirmedAt = undefined;
 
+      const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
+
+      await channel.assertQueue(queueName, { durable: true });
+
+      const rideObject = ride.toObject ? ride.toObject() : ride;
+      const message = Buffer.from(JSON.stringify(rideObject));
+
+      const success = channel.sendToQueue(queueName, message, {
+        expiration: (10 * 60 * 1000).toString(),
+        persistent: true,
+      });
+
+      console.log("Message push to queue success:", success);
 
       await ride.save();
 
-      
-
-      const message = Buffer.from(JSON.stringify(ride));
-
-      // Ensure the message always stays in READY state, never moves to UNACKED
-      await channel.sendToQueue(queueName, message, {
-      expiration: (10 * 60 * 1000).toString(), // **Auto-expire in 10 minutes**
-      persistent: true, // **Ensures the message is durable**
-    });
+      if (!success) {
+        console.log({ message: "Ride saved but failed to requeue" });
+      }
 
       // If the ride is still valid, return its status
       return res.status(200).json({ message: "Ride request cancelled successfully", ride });
