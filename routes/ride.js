@@ -848,14 +848,17 @@ function sanitizeRideForQueue(ride) {
   if (
     ride.dropDetails2 &&
     typeof ride.dropDetails2 === "object" &&
+    !Array.isArray(ride.dropDetails2) &&
     Object.keys(ride.dropDetails2).length > 0
   ) {
     base.dropDetails2 = ride.dropDetails2;
   }
 
+  // Only add dropDetails3 if it's a non-empty object
   if (
     ride.dropDetails3 &&
     typeof ride.dropDetails3 === "object" &&
+    !Array.isArray(ride.dropDetails3) &&
     Object.keys(ride.dropDetails3).length > 0
   ) {
     base.dropDetails3 = ride.dropDetails3;
