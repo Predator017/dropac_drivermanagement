@@ -854,11 +854,7 @@ router.post("/cancel-ride", async (req, res) => {
       const channel = getChannel();
       
       
-      if (!channel) {
-        console.error("RabbitMQ channel is not available");
-      
-      }
-
+   
       
 
 
@@ -872,41 +868,47 @@ router.post("/cancel-ride", async (req, res) => {
       ride.otp = undefined;
       ride.confirmedAt = undefined;
 
-      await ride.save();
-
-      
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
-      await channel.assertQueue(queueName, { durable: true });
-
-      const rideObject = ride.toObject ? ride.toObject() : ride;
-      const message = Buffer.from(JSON.stringify(rideObject));
+      // Ensure it's a plain object and doesn't contain Mongoose stuff
+      const plainRide = {
+        _id: ride._id,
+        userId: ride.userId,
+        vehicleType: ride.vehicleType,
+        pickupDetails: ride.pickupDetails,
+        dropDetails1: ride.dropDetails1,
+        outStation: ride.outStation,
+        currentDropNumber: ride.currentDropNumber,
+        fare: ride.fare,
+        distance: ride.distance,
+        duration: ride.duration,
+        status: "pending",
+        createdAt: ride.createdAt,
+        timeoutAt: ride.timeoutAt
+      };
 
       try {
-        const success = channel.sendToQueue(queueName, message, {
-          expiration: (10 * 60 * 1000).toString(),
-          persistent: true,
-        });
-      
-        if (!success) {
-          console.error("❌ Failed to buffer message into queue:", queueName);
-          return res.status(500).json({ message: "Failed to push ride back to queue after cancellation" });
+        await channel.assertQueue(queueName, { durable: true });
+
+        const pushed = channel.sendToQueue(
+          queueName,
+          Buffer.from(JSON.stringify(plainRide)),
+          {
+            expiration: (10 * 60 * 1000).toString(),
+            persistent: true
+          }
+        );
+
+        if (pushed) {
+          console.log("✅ Ride successfully pushed to queue:", queueName);
+        } else {
+          console.error("❌ Failed to push ride to queue:", queueName);
         }
-      
-        await channel.waitForConfirms(); // 💡 Ensure publish is acknowledged
-        console.log("✅ Ride successfully pushed to queue:", queueName);
-      } catch (err) {
-        console.error("❌ Error confirming message delivery:", err);
-        return res.status(500).json({ message: "Failed to confirm message delivery" });
+
+        await ride.save();
+      } catch (queueErr) {
+        console.error("❌ Error pushing ride to queue:", queueErr.message);
       }
-      
-      
-
-
-      if (!success) {
-        console.log({ message: "Ride saved but failed to requeue" });
-      }
-
       // If the ride is still valid, return its status
       return res.status(200).json({ message: "Ride request cancelled successfully", ride });
     }
