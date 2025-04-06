@@ -845,21 +845,34 @@ function sanitizeRideForQueue(ride) {
     __v: ride.__v // Add this if frontend expects it
   };
 
+  // Only add dropDetails2 if it exists and has at least one non-empty property
   if (
     ride.dropDetails2 &&
     typeof ride.dropDetails2 === "object" &&
     !Array.isArray(ride.dropDetails2) &&
-    Object.keys(ride.dropDetails2).length > 0
+    Object.keys(ride.dropDetails2).length > 0 &&
+    // Check if at least one property has a non-empty value
+    Object.values(ride.dropDetails2).some(value => 
+      value !== null && 
+      value !== undefined && 
+      value !== ''
+    )
   ) {
     base.dropDetails2 = ride.dropDetails2;
   }
 
-  // Only add dropDetails3 if it's a non-empty object
+  // Only add dropDetails3 if it exists and has at least one non-empty property
   if (
     ride.dropDetails3 &&
     typeof ride.dropDetails3 === "object" &&
     !Array.isArray(ride.dropDetails3) &&
-    Object.keys(ride.dropDetails3).length > 0
+    Object.keys(ride.dropDetails3).length > 0 &&
+    // Check if at least one property has a non-empty value
+    Object.values(ride.dropDetails3).some(value => 
+      value !== null && 
+      value !== undefined && 
+      value !== ''
+    )
   ) {
     base.dropDetails3 = ride.dropDetails3;
   }
@@ -912,7 +925,8 @@ router.post("/cancel-ride", async (req, res) => {
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
       // Ensure it's a plain object and doesn't contain Mongoose stuff
-      const plainRide = sanitizeRideForQueue(ride);
+      const plainRide = JSON.parse(JSON.stringify(ride));
+      const sanitizedRide = sanitizeRideForQueue(plainRide);
 
 
       try {
@@ -920,7 +934,7 @@ router.post("/cancel-ride", async (req, res) => {
 
         const pushed = channel.sendToQueue(
           queueName,
-          Buffer.from(JSON.stringify(plainRide)),
+          Buffer.from(JSON.stringify(sanitizedRide)),
           {
             expiration: (10 * 60 * 1000).toString(),
             persistent: true
