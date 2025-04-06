@@ -870,14 +870,32 @@ router.post("/cancel-ride", async (req, res) => {
 
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
-      
+      // Ensure it's a plain object and doesn't contain Mongoose stuff
+      const plainRide = {
+        _id: ride._id,
+        userId: ride.userId,
+        vehicleType: ride.vehicleType,
+        pickupDetails: ride.pickupDetails,
+        dropDetails1: ride.dropDetails1,
+        dropDetails2: ride.dropDetails2 ?? undefined,
+        dropDetails3: ride.dropDetails3 ?? undefined,
+        outStation: ride.outStation,
+        currentDropNumber: ride.currentDropNumber,
+        fare: ride.fare,
+        distance: ride.distance,
+        duration: ride.duration,
+        status: "pending",
+        createdAt: ride.createdAt,
+        timeoutAt: ride.timeoutAt,
+        __v: ride.__v
+      };
 
       try {
         await channel.assertQueue(queueName, { durable: true });
 
         const pushed = channel.sendToQueue(
           queueName,
-          Buffer.from(JSON.stringify(ride)),
+          Buffer.from(JSON.stringify(plainRide)),
           {
             expiration: (10 * 60 * 1000).toString(),
             persistent: true
