@@ -905,7 +905,6 @@ router.post("/cancel-ride", async (req, res) => {
       );
     
 
-      const channel = getChannel();
       
       
    
@@ -922,34 +921,48 @@ router.post("/cancel-ride", async (req, res) => {
       ride.otp = undefined;
       ride.confirmedAt = undefined;
 
+      await ride.save();
+
       const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
 
-      // Ensure it's a plain object and doesn't contain Mongoose stuff
-      const plainRide = JSON.parse(JSON.stringify(ride));
-      const sanitizedRide = sanitizeRideForQueue(plainRide);
-
-
       try {
+        // Get a fresh channel for this operation
+        const channel = getChannel();
+        if (!channel || !channel.assertQueue) {
+          throw new Error("RabbitMQ channel not available");
+        }
+        
         await channel.assertQueue(queueName, { durable: true });
+
+        // Convert Mongoose document to plain JSON
+        const plainRide = JSON.parse(JSON.stringify(ride));
+        const sanitizedRide = sanitizeRideForQueue(plainRide);
+    
+
+        // Debug log
+        console.log("Attempting to push to queue:", JSON.stringify(sanitizedRide));
 
         const pushed = channel.sendToQueue(
           queueName,
           Buffer.from(JSON.stringify(sanitizedRide)),
           {
             expiration: (10 * 60 * 1000).toString(),
-            persistent: true
+            persistent: true,
+            // Add a message ID for tracking
+            messageId: sanitizedRide._id.toString()
           }
         );
 
         if (pushed) {
-          console.log("✅ Ride successfully pushed to queue:", queueName);
+          console.log(`✅ Ride ${rideId} successfully pushed to queue: ${queueName}`);
         } else {
-          console.error("❌ Failed to push ride to queue:", queueName);
-        }
+          // This is critical - channel buffer might be full
+          console.error(`❌ Failed to push ride ${rideId} to queue: ${queueName} - channel buffer full`);
 
-        await ride.save();
+        }
       } catch (queueErr) {
-        console.error("❌ Error pushing ride to queue:", queueErr.message);
+        console.error(`❌ Error pushing ride ${rideId} to queue:`, queueErr.message);
+      
       }
       // If the ride is still valid, return its status
       return res.status(200).json({ message: "Ride request cancelled successfully", ride });
